@@ -1,0 +1,88 @@
+{% extends "core/base.html" %}
+{% load tz %}
+
+{% block content %}
+
+<style>
+  .form-card {
+    background: #fff;
+    border: 1px solid #ddd;
+    border-radius: 10px;
+    padding: 16px 20px;
+    max-width: 500px;
+    margin: 20px auto;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, .08);
+  }
+
+  .form-card h2 {
+    margin-top: 0;
+    font-size: 18px;
+    font-weight: bold;
+  }
+
+  .form-card label {
+    font-weight: 600;
+    display: block;
+    margin: 8px 0 4px 0;
+  }
+
+  .form-card input,
+  .form-card select,
+  .form-card textarea {
+    width: 100%;
+    border: 1px solid #ddd;
+    border-radius: 6px;
+    padding: 6px 8px;
+    font-size: 14px;
+  }
+
+  /* ✅ Styl spójny z kafelkami */
+  .card-btn {
+    display: inline-block;
+    border: 1px solid #ddd;
+    background: #fff;
+    padding: 6px 12px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 14px;
+    line-height: 1.3;
+    color: #333;
+    text-decoration: none;
+    transition: background .15s ease, box-shadow .15s ease;
+  }
+
+  .card-btn:hover {
+    background: #f2f2f2;
+  }
+
+  .actions {
+    display: flex;
+    gap: 8px;
+    margin-top: 12px;
+  }
+</style>
+
+<div class="form-card">
+  <h2>Edycja masy – Wózek {{ load.cart.number }}</h2>
+
+  <form method="post">
+    {% csrf_token %}
+
+    <div class="form-group">
+      <label for="{{ form.total_weight_kg.id_for_label }}">Masa [kg]:</label>
+      {{ form.total_weight_kg }}
+    </div>
+
+    <div class="form-group">
+      <label for="{{ form.edited_by.id_for_label }}">Edytował:</label>
+      {{ form.edited_by }}
+    </div>
+
+    <div class="actions">
+      <button type="submit" class="card-btn">Zapisz zmiany</button>
+      <a href="{% url 'home' %}" class="card-btn">Anuluj</a>
+    </div>
+  </form>
+</div>
+
+{% endblock %}

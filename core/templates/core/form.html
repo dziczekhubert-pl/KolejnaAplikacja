@@ -1,0 +1,17 @@
+{% extends "core/base.html" %}
+{% block content %}
+<h2>{{ title }}</h2>
+<form method="post">
+    {% csrf_token %}
+    {{ form.non_field_errors }}
+    {% for field in form %}
+    <label>{{ field.label }}<br />{{ field }}</label>
+    {% if field.help_text %}<div class="muted">{{ field.help_text }}</div>{% endif %}
+    {% for e in field.errors %}<div class="err">{{ e }}</div>{% endfor %}
+    {% endfor %}
+    <div style="margin-top:12px;">
+        <button type="submit">Zapisz</button>
+        <a class="button" href="{% url 'home' %}">Anuluj</a>
+    </div>
+</form>
+{% endblock %}

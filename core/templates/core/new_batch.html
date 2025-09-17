@@ -1,0 +1,304 @@
+{% extends "core/base.html" %}
+{% load tz %}
+{% block content %}
+
+<style>
+    .tunnel-table {
+        width: 100%;
+        border-collapse: collapse;
+        table-layout: fixed;
+    }
+
+    .tunnel-table th,
+    .tunnel-table td {
+        padding: 8px 10px;
+        border: 1px solid #e5e7eb;
+    }
+
+    .col-cart {
+        width: 10ch;
+        max-width: 12ch;
+    }
+
+    /* numer wózka */
+    .col-kind {
+        min-width: calc(11ch + 24px);
+        width: auto;
+    }
+
+    .col-code {
+        width: 8ch;
+        max-width: 10ch;
+    }
+
+    /* kod 1–365 */
+    .col-date {
+        width: 16ch;
+        max-width: 18ch;
+    }
+
+    /* yyyy-mm-dd */
+
+    .btn {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 8px 12px;
+        border: 1px solid #e5e7eb;
+        border-radius: 10px;
+        background: #fff;
+        font-weight: 600;
+        cursor: pointer;
+    }
+
+    .btn-primary {
+        background: #10b981;
+        border-color: #059669;
+        color: #fff;
+    }
+
+    .btn:disabled {
+        opacity: .6;
+        cursor: not-allowed;
+    }
+
+    /* lekki baner na komunikaty */
+    .banner {
+        margin: 12px 0 0;
+        padding: 10px 12px;
+        border-radius: 10px;
+        border: 1px solid transparent;
+        display: none;
+    }
+
+    .banner.show {
+        display: block;
+    }
+
+    .banner-info {
+        background: #f3f4f6;
+        border-color: #e5e7eb;
+        color: #374151;
+    }
+
+    .banner-warn {
+        background: #fff7ed;
+        border-color: #fed7aa;
+        color: #7c2d12;
+    }
+
+    .banner-ok {
+        background: #ecfdf5;
+        border-color: #a7f3d0;
+        color: #065f46;
+    }
+
+    .banner .actions {
+        display: flex;
+        gap: 8px;
+        margin-top: 8px;
+    }
+</style>
+
+<form method="post" id="tunnel-form" novalidate>
+    {% csrf_token %}
+    <table class="tunnel-table">
+        <colgroup>
+            <col class="col-cart">
+            <col class="col-kind">
+            <col class="col-code">
+            <col class="col-date">
+        </colgroup>
+        <thead>
+            <tr>
+                <th>Numer wózka</th>
+                <th>Rodzaj batona</th>
+                <th>Kod</th>
+                <th>Data produkcji batona</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td>{{ form.cart_number }}</td>
+                <td>{{ form.product_kind }}</td>
+                <td>{{ form.product_code }}</td>
+                <td>{{ form.bar_production_date }}</td>
+            </tr>
+        </tbody>
+    </table>
+
+    <!-- ukryta flaga: pozwól utworzyć wózek jeżeli nie istnieje -->
+    <input type="hidden" name="create_cart_if_missing" id="id_create_cart_if_missing" value="0">
+
+    <!-- baner komunikatów -->
+    <div id="cart-banner" class="banner" role="status" aria-live="polite"></div>
+
+    <div style="margin-top:12px">
+        <button type="submit" class="btn btn-primary" id="save-btn">Zapisz</button>
+    </div>
+</form>
+
+<script>
+    (() => {
+        // ====== PUNKTY DOSTĘPU ======
+        // Musi istnieć i zwracać JSON: {exists: bool, occupied: bool, label: "Wózek 12"}
+        const CHECK_URL = (num) => `/api/carts/check/?number=${encodeURIComponent(num)}`;
+
+        function qs(id) { return document.getElementById(id); }
+        function setBanner(kind, html) {
+            const b = qs('cart-banner');
+            b.className = `banner ${kind ? 'show banner-' + kind : ''}`;
+            b.innerHTML = html || '';
+        }
+        function debounce(fn, ms) { let t; return (...a) => { clearTimeout(t); t = setTimeout(() => fn(...a), ms); }; }
+
+        const form = qs('tunnel-form');
+        const saveBtn = qs('save-btn');
+        const createFlag = qs('id_create_cart_if_missing');
+
+        const cartEl = qs('id_cart_number');
+        const kindEl = qs('id_product_kind');
+        const codeEl = qs('id_product_code');
+        const producedEl = qs('id_bar_production_date');
+
+        // Dodaj 'required' na wszelki wypadek
+        cartEl?.setAttribute('required', 'required');
+
+        async function checkCart(number) {
+            const res = await fetch(CHECK_URL(number), { headers: { 'Accept': 'application/json' } });
+            if (!res.ok) {
+                // KLUCZOWA ZMIANA: brak API = traktujemy jako błąd walidacji,
+                // pokazujemy komunikat i BLOKUJEMY submit.
+                throw new Error('CHECK_API_UNAVAILABLE');
+            }
+            return res.json();
+        }
+
+        // ====== Walidacja numeru wózka ======
+        async function validateCart({ interactive = true } = {}) {
+            const raw = (cartEl?.value || '').trim();
+            if (!raw) {
+                setBanner('info', 'Podaj numer wózka.');
+                cartEl?.setCustomValidity('Podaj numer wózka.');
+                saveBtn.disabled = true;
+                return false;
+            }
+            const number = raw.replace(/\s+/g, '');
+
+            try {
+                const data = await checkCart(number);
+                createFlag.value = '0';
+                cartEl.setCustomValidity('');
+
+                if (!data.exists) {
+                    if (interactive) {
+                        setBanner('info', `
+                        Nie ma w systemie numeru <strong>${number}</strong>. Czy chcesz go dodać teraz?
+                        <div class="actions">
+                            <button type="button" class="btn" id="bn-add-cart">Dodaj wózek ${number}</button>
+                            <button type="button" class="btn" id="bn-cancel-add">Anuluj</button>
+                        </div>
+                    `);
+                        setTimeout(() => {
+                            const ok = document.getElementById('bn-add-cart');
+                            const no = document.getElementById('bn-cancel-add');
+                            ok?.addEventListener('click', () => {
+                                createFlag.value = '1';
+                                setBanner('ok', `Nowy wózek <strong>${number}</strong> zostanie dodany przy zapisie.`);
+                                cartEl.setCustomValidity('');
+                                saveBtn.disabled = false;
+                            }, { once: true });
+                            no?.addEventListener('click', () => {
+                                setBanner('warn', 'Utworzenie wózka anulowane. Wpisz inny numer albo potwierdź dodanie.');
+                                cartEl.setCustomValidity('Brak takiego wózka.');
+                                saveBtn.disabled = true;
+                            }, { once: true });
+                        });
+                    } else {
+                        // Przy submit – jeśli nie potwierdzono dodania, blokuj
+                        if (createFlag.value !== '1') {
+                            setBanner('warn', `Wózek <strong>${number}</strong> nie istnieje. Potwierdź dodanie lub zmień numer.`);
+                            cartEl.setCustomValidity('Brak takiego wózka.');
+                            saveBtn.disabled = true;
+                            return false;
+                        }
+                    }
+                    return createFlag.value === '1';
+                }
+
+                if (data.occupied) {
+                    setBanner('warn', `Wózek <strong>${data.label || number}</strong> jest <strong>zajęty</strong>. Wybierz inny numer.`);
+                    cartEl.setCustomValidity('Wózek zajęty.');
+                    saveBtn.disabled = true;
+                    return false;
+                }
+
+                setBanner('ok', `Wózek <strong>${data.label || number}</strong> jest dostępny.`);
+                cartEl.setCustomValidity('');
+                saveBtn.disabled = false;
+                return true;
+
+            } catch (e) {
+                // Brak/awaria API – jasno pokaż i BLOKUJ zapis.
+                setBanner('warn', 'Nie udało się sprawdzić numeru wózka (API niedostępne). Spróbuj ponownie lub skontaktuj się z administratorem.');
+                cartEl?.setCustomValidity('Nie udało się sprawdzić numeru wózka.');
+                saveBtn.disabled = true;
+                return false;
+            }
+        }
+
+        // Live-walidacja podczas wpisywania
+        cartEl?.addEventListener('input', debounce(() => validateCart({ interactive: true }), 250));
+        cartEl?.addEventListener('change', () => validateCart({ interactive: true }));
+
+        // ====== Lookup kodu → uzupełnienie daty produkcji (Twoja logika) ======
+        async function lookupAndFill() {
+            const kind = kindEl?.value;
+            const code = codeEl?.value;
+            if (!kind || !code) { codeEl?.setCustomValidity(''); return; }
+            try {
+                const url = `/api/magazynek/lookup/?kind=${encodeURIComponent(kind)}&code=${encodeURIComponent(code)}`;
+                const res = await fetch(url, { headers: { 'Accept': 'application/json' } });
+                const data = await res.json();
+
+                if (!data.found) {
+                    codeEl.setCustomValidity('Taki kod nie występuje dla wybranego rodzaju batona (na magazynku).');
+                } else {
+                    codeEl.setCustomValidity('');
+                    if (producedEl && data.latest_packing_date_iso) {
+                        const iso = data.latest_packing_date_iso;
+                        if (producedEl.type === 'date') producedEl.value = iso.slice(0, 10);
+                        else if (producedEl.type === 'datetime-local') producedEl.value = iso.slice(0, 16);
+                        else producedEl.value = iso;
+                    }
+                }
+                codeEl.reportValidity();
+            } catch {
+                codeEl.setCustomValidity('');
+            }
+        }
+        const debouncedLF = debounce(lookupAndFill, 250);
+        kindEl?.addEventListener('change', debouncedLF);
+        codeEl?.addEventListener('input', debouncedLF);
+        codeEl?.addEventListener('change', debouncedLF);
+
+        // ====== Ostateczna walidacja przy submit ======
+        form.addEventListener('submit', async (e) => {
+            // zawsze sprawdź wózek PRZED wysłaniem
+            e.preventDefault();
+            saveBtn.disabled = true;
+
+            const okCart = await validateCart({ interactive: false });
+            if (!okCart) {
+                saveBtn.disabled = false;
+                cartEl?.focus();
+                return;
+            }
+
+            // jeżeli tu doszliśmy – można wysłać formularz
+            form.submit();
+        });
+
+    })();
+</script>
+{% endblock %}

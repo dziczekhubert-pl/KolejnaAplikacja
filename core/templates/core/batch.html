@@ -1,0 +1,458 @@
+{% extends "core/base.html" %}
+{% block content %}
+<h2>{{ title }}</h2>
+
+<form method="post" id="batch-form" novalidate>
+    {% csrf_token %}
+
+    <!-- WSPÓLNE DLA PARTII -->
+    <fieldset class="card" style="margin-bottom:16px;">
+        <legend><strong>Wspólne dla całej partii</strong></legend>
+
+        <div class="common-grid">
+            <div class="field" data-sync="common">
+                <div class="label-centered">{{ common.packing_date.label }}</div>
+                {{ common.packing_date }}
+            </div>
+            <div class="field" data-sync="common">
+                <div class="label-centered">{{ common.production_shift.label }}</div>
+                {{ common.production_shift }}
+            </div>
+            <div class="field" data-sync="common">
+                <div class="label-centered">{{ common.product_kind.label }}</div>
+                {{ common.product_kind }}
+            </div>
+            <div class="field" data-sync="common">
+                <div class="label-centered">{{ common.product_code.label }}</div>
+                {{ common.product_code }}
+            </div>
+
+            <div class="field" data-sync="common">
+                <div class="label-centered">{{ common.handled_by.label }}</div>
+                {{ common.handled_by }}
+            </div>
+        </div>
+    </fieldset>
+
+    <!-- WÓZKI W PARTII -->
+    <fieldset class="card">
+        <legend><strong>Wózki w partii</strong></legend>
+
+        {{ formset.management_form }}
+
+        <!-- Nagłówki kolumn -->
+        <div class="rows">
+            <div class="row headers">
+                <div class="col">
+                    <div class="label-centered col-label" data-col="cart_number">
+                        {{ formset.empty_form.cart_number.label }}
+                    </div>
+                </div>
+                <div class="col">
+                    <div class="label-centered col-label" data-col="total_weight_kg">
+                        {{ formset.empty_form.total_weight_kg.label }}
+                    </div>
+                </div>
+                <div class="col">
+                    <div class="label-centered col-label" data-col="tank">
+                        {{ formset.empty_form.tank.label }}
+                    </div>
+                </div>
+                <div class="col action-col"></div>
+            </div>
+
+            <!-- Tu będą pojawiać się wiersze z samymi polami -->
+            <div id="formset-area"></div>
+
+            <!-- Szablon wiersza (tylko inputy, bez etykiet) -->
+            <template id="row-template">
+                <div class="row form-row" style="margin-bottom:6px; align-items:flex-end;">
+                    <div class="col">
+                        {{ formset.empty_form.cart_number }}
+                    </div>
+                    <div class="col">
+                        {{ formset.empty_form.total_weight_kg }}
+                    </div>
+                    <div class="col">
+                        {{ formset.empty_form.tank }}
+                    </div>
+
+                    <!-- ukryty DELETE – zaznaczymy go JS-em, żeby Django usunęło wiersz -->
+                    <div style="display:none;">{{ formset.empty_form.DELETE }}</div>
+
+                    <div class="col action-col">
+                        <button type="button" class="remove-row">Usuń pozycję</button>
+                    </div>
+
+                    <!-- BANER WIERSZA (pełna szerokość pod polami) -->
+                    <div class="row-msg">
+                        <div id="row-__prefix__-banner" class="row-banner"></div>
+                    </div>
+                </div>
+            </template>
+
+            <button type="button" id="add-row">+ Dodaj wózek</button>
+        </div>
+    </fieldset>
+
+    <!-- globalna flaga: pozwól tworzyć brakujące wózki (ustawiana z banera) -->
+    <input type="hidden" name="create_cart_if_missing" id="id_create_cart_if_missing" value="0">
+
+    <div style="margin-top:12px;">
+        <button type="submit" id="save-btn">Zapisz partię</button>
+        <a class="button" href="{% url 'home' %}">Anuluj</a>
+    </div>
+</form>
+
+<style>
+    /* Ogólne */
+    .common-grid {
+        display: grid;
+        grid-auto-flow: column;
+        grid-auto-columns: max-content;
+        gap: 16px;
+        align-items: start;
+    }
+
+    .field {
+        display: inline-block;
+        margin-bottom: 8px;
+    }
+
+    .label-centered {
+        text-align: center;
+        font-weight: 600;
+        display: block;
+        margin-bottom: 6px;
+        white-space: nowrap;
+    }
+
+    .field input,
+    .field select,
+    .field textarea {
+        width: 100%;
+        box-sizing: border-box;
+    }
+
+    /* Sekcja wierszy */
+    .rows {
+        display: block;
+    }
+
+    .rows .row {
+        display: grid;
+        grid-template-columns: max-content max-content max-content auto;
+        column-gap: 16px;
+        align-items: start;
+    }
+
+    .rows .headers {
+        margin-bottom: 8px;
+    }
+
+    .rows .col {
+        display: inline-block;
+    }
+
+    .rows .col input,
+    .rows .col select {
+        width: 100%;
+        box-sizing: border-box;
+    }
+
+    .rows .action-col {
+        align-self: end;
+    }
+
+    #formset-area .form-row {
+        margin-bottom: 6px;
+    }
+
+    /* Baner per-wiersz */
+    .row-msg {
+        grid-column: 1 / -1;
+        margin-top: 6px;
+    }
+
+    .row-banner {
+        font-size: 12px;
+        padding: 6px 8px;
+        border-radius: 8px;
+        border: 1px solid transparent;
+        display: none;
+    }
+
+    .row-banner.show {
+        display: block;
+    }
+
+    .row-ok {
+        background: #ecfdf5;
+        border-color: #a7f3d0;
+        color: #065f46;
+    }
+
+    .row-warn {
+        background: #fff7ed;
+        border-color: #fed7aa;
+        color: #7c2d12;
+    }
+
+    .row-info {
+        background: #f3f4f6;
+        border-color: #e5e7eb;
+        color: #374151;
+    }
+</style>
+
+<script>
+    // ====== Dodawanie / Usuwanie wierszy ======
+    const addRowBtn = document.getElementById("add-row");
+    const formsetArea = document.getElementById("formset-area");
+    const totalForms = document.querySelector('input[name$="-TOTAL_FORMS"]');
+    const templateEl = document.getElementById("row-template");
+
+    const form = document.getElementById('batch-form');
+    const saveBtn = document.getElementById('save-btn');
+    const createFlag = document.getElementById('id_create_cart_if_missing');
+
+    // wspólne pola (używane do autofill daty)
+    const kindEl = document.getElementById('{{ common.product_kind.auto_id }}');
+    const codeEl = document.getElementById('{{ common.product_code.auto_id }}');
+    const packEl = document.getElementById('{{ common.packing_date.auto_id }}');
+
+    function wireRow(row) {
+        const removeBtn = row.querySelector(".remove-row");
+        const del = row.querySelector('input[name$="-DELETE"]');
+        if (removeBtn && del) {
+            removeBtn.addEventListener("click", () => {
+                del.checked = true;
+                row.style.display = "none";
+            });
+        }
+
+        // podłącz walidację numeru wózka live
+        const cartInput = row.querySelector("input[id$='-cart_number']");
+        if (cartInput) {
+            cartInput.addEventListener('input', debounce(() => validateRow(row, true), 250));
+            cartInput.addEventListener('change', () => validateRow(row, true));
+        }
+        syncRowColumnWidths();
+    }
+
+    function addRow() {
+        const idx = Number(totalForms.value || 0);
+        const html = templateEl.innerHTML.replaceAll(/__prefix__/g, idx.toString());
+        const tpl = document.createElement("template");
+        tpl.innerHTML = html.trim();
+        const row = tpl.content.firstElementChild;
+
+        // wyczyść wartości inputów
+        row.querySelectorAll("input").forEach(inp => {
+            if (inp.type !== "checkbox") inp.value = "";
+            if (inp.name.endsWith("-DELETE")) inp.checked = false;
+        });
+
+        formsetArea.appendChild(row);
+        totalForms.value = idx + 1;
+        wireRow(row);
+    }
+
+    if (addRowBtn) addRowBtn.addEventListener("click", addRow);
+
+    // ====== Szerokość inputów = szerokość nagłówków ======
+    function syncCommonFields() {
+        document.querySelectorAll('.field[data-sync="common"]').forEach(box => {
+            const label = box.querySelector('.label-centered');
+            const input = box.querySelector('input, select, textarea');
+            if (label && input) {
+                const w = Math.ceil(label.getBoundingClientRect().width);
+                box.style.width = w + "px";
+                input.style.width = "100%";
+            }
+        });
+    }
+    function labelIndex(key) {
+        switch (key) {
+            case 'cart_number': return 1;
+            case 'total_weight_kg': return 2;
+            case 'tank': return 3;
+            default: return 1;
+        }
+    }
+    function syncRowColumnWidths() {
+        const labels = document.querySelectorAll('.col-label');
+        labels.forEach(lbl => {
+            const colKey = lbl.getAttribute('data-col'); // cart_number | total_weight_kg | tank
+            const width = Math.ceil(lbl.getBoundingClientRect().width);
+            document.querySelectorAll(`#formset-area .form-row .col:nth-child(${labelIndex(colKey)}) input`).forEach(inp => {
+                inp.style.width = width + "px";
+            });
+            lbl.style.display = "inline-block";
+            lbl.style.width = width + "px";
+        });
+    }
+    function syncAll() {
+        syncCommonFields();
+        syncRowColumnWidths();
+    }
+    window.addEventListener('load', syncAll);
+    window.addEventListener('resize', syncAll);
+
+    // ====== API helpers ======
+    const CART_CHECK_URL = (num) => `/api/magazynek/cart_check/?number=${encodeURIComponent(num)}`;
+    const LOOKUP_URL = (kind, code) => `/api/magazynek/lookup/?kind=${encodeURIComponent(kind)}&code=${encodeURIComponent(code)}`;
+
+    const debounce = (fn, ms) => { let t; return (...a) => { clearTimeout(t); t = setTimeout(() => fn(...a), ms); }; };
+
+    async function apiCartCheck(number) {
+        const res = await fetch(CART_CHECK_URL(number), { headers: { 'Accept': 'application/json' } });
+        if (!res.ok) throw new Error('CHECK_API_UNAVAILABLE');
+        return res.json();
+    }
+
+    function rowIndex(rowEl) {
+        // Id banera ma format row-<index>-banner; spróbuj wydobyć
+        const banner = rowEl.querySelector('[id^="row-"][id$="-banner"]');
+        if (!banner) return null;
+        const m = banner.id.match(/^row-(\d+)-banner$/);
+        return m ? parseInt(m[1], 10) : null;
+    }
+
+    function setRowBannerByRow(rowEl, kind, html) {
+        const ix = rowIndex(rowEl);
+        if (ix === null) return;
+        const b = document.getElementById(`row-${ix}-banner`);
+        if (!b) return;
+        if (!kind) { b.className = 'row-banner'; b.style.display = 'none'; b.innerHTML = ''; return; }
+        b.className = `row-banner show row-${kind}`;
+        b.style.display = 'block';
+        b.innerHTML = html;
+    }
+
+    async function validateRow(rowEl, interactive = true) {
+        const cartEl = rowEl.querySelector("input[id$='-cart_number']");
+        if (!cartEl) return true;
+
+        const raw = (cartEl.value || '').trim();
+        if (!raw) {
+            setRowBannerByRow(rowEl, 'info', 'Podaj numer wózka.');
+            cartEl.setCustomValidity('Podaj numer wózka.');
+            return false;
+        }
+        const number = raw.replace(/\s+/g, '');
+
+        try {
+            const data = await apiCartCheck(number);
+            cartEl.setCustomValidity('');
+            if (!data.exists) {
+                if (interactive) {
+                    const ix = rowIndex(rowEl);
+                    setRowBannerByRow(rowEl, 'info', `
+                        Wózek <strong>${number}</strong> nie istnieje. Dodać teraz?
+                        <div class="row-actions">
+                            <button type="button" class="btn" data-row="${ix}" data-act="add-missing">Dodaj wózek</button>
+                            <button type="button" class="btn" data-row="${ix}" data-act="cancel-missing">Anuluj</button>
+                        </div>
+                    `);
+                } else {
+                    if (createFlag.value !== '1') {
+                        setRowBannerByRow(rowEl, 'warn', `Wózek <strong>${number}</strong> nie istnieje. Potwierdź dodanie lub zmień numer.`);
+                        cartEl.setCustomValidity('Brak takiego wózka.');
+                        return false;
+                    }
+                }
+                return createFlag.value === '1';
+            }
+
+            if (data.occupied) {
+                setRowBannerByRow(rowEl, 'warn', `Wózek <strong>${data.label || number}</strong> jest <strong>zajęty</strong>. Wybierz inny numer.`);
+                cartEl.setCustomValidity('Wózek zajęty.');
+                return false;
+            }
+
+            setRowBannerByRow(rowEl, 'ok', `Wózek <strong>${data.label || number}</strong> jest dostępny.`);
+            cartEl.setCustomValidity('');
+            return true;
+
+        } catch (e) {
+            setRowBannerByRow(rowEl, 'warn', 'Nie udało się sprawdzić wózka (API niedostępne).');
+            cartEl.setCustomValidity('Nie udało się sprawdzić wózka.');
+            return false;
+        }
+    }
+
+    // obsługa przycisków w banerach (delegacja)
+    document.addEventListener('click', (e) => {
+        const btn = e.target.closest('button[data-act]');
+        if (!btn) return;
+        const act = btn.getAttribute('data-act');
+        const ix = parseInt(btn.getAttribute('data-row'), 10);
+        const rowEl = document.querySelector(`#row-${ix}-banner`)?.closest('.form-row');
+        if (!rowEl) return;
+
+        if (act === 'add-missing') {
+            createFlag.value = '1'; // zezwól globalnie na tworzenie brakujących
+            setRowBannerByRow(rowEl, 'ok', `Brakujący wózek zostanie <strong>utworzony</strong> przy zapisie.`);
+            const cartEl = rowEl.querySelector("input[id$='-cart_number']");
+            cartEl?.setCustomValidity('');
+            saveBtn.disabled = false;
+        } else if (act === 'cancel-missing') {
+            setRowBannerByRow(rowEl, 'warn', 'Utworzenie wózka anulowane. Wpisz inny numer lub potwierdź dodanie.');
+            const cartEl = rowEl.querySelector("input[id$='-cart_number']");
+            cartEl?.setCustomValidity('Brak takiego wózka.');
+            saveBtn.disabled = true;
+        }
+    });
+
+    // uzupełnianie daty pakowania po wyborze rodzaju + kodu
+    async function lookupPacking() {
+        const kind = kindEl?.value;
+        const code = codeEl?.value;
+        if (!kind || !code) return;
+        try {
+            const res = await fetch(LOOKUP_URL(kind, code), { headers: { 'Accept': 'application/json' } });
+            const data = await res.json();
+            if (data.found && data.latest_packing_date_iso && packEl) {
+                const iso = data.latest_packing_date_iso;
+                if (packEl.type === 'date') packEl.value = iso.slice(0, 10);
+                else packEl.value = iso;
+            }
+        } catch { /* cicho */ }
+    }
+    const debouncedLookup = debounce(lookupPacking, 250);
+    kindEl?.addEventListener('change', debouncedLookup);
+    codeEl?.addEventListener('input', debouncedLookup);
+    codeEl?.addEventListener('change', debouncedLookup);
+
+    // finalna walidacja przy submit
+    form.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        saveBtn.disabled = true;
+
+        // zbierz aktualne wiersze (niezaznaczone DELETE i z numerem)
+        const rows = Array.from(document.querySelectorAll('#formset-area .form-row'))
+            .filter(r => {
+                const del = r.querySelector('input[name$="-DELETE"]');
+                const cart = r.querySelector("input[id$='-cart_number']");
+                return (!del || !del.checked) && cart && cart.value.trim();
+            });
+
+        if (rows.length === 0) {
+            // brak pozycji – pozwól backendowi zdecydować (lub dodaj tu komunikat)
+            form.submit();
+            return;
+        }
+
+        const results = await Promise.all(rows.map(r => validateRow(r, false)));
+        if (results.every(Boolean)) {
+            form.submit();
+        } else {
+            // focus na pierwszy błędny
+            const bad = rows[results.findIndex(v => !v)];
+            bad?.querySelector("input[id$='-cart_number']")?.focus();
+            saveBtn.disabled = false;
+        }
+    });
+</script>
+{% endblock %}

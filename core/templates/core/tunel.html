@@ -1,0 +1,893 @@
+{% extends "core/base.html" %}
+{% load tz %}
+
+{% block content %}
+
+<style>
+    .tunnel-table {
+        width: 100%;
+        border-collapse: collapse;
+        table-layout: fixed;
+        margin-top: 12px;
+        font-size: 13px;
+        text-align: center
+    }
+
+    .tunnel-table th,
+    .tunnel-table td {
+        border: 1px solid #d1d5db;
+        padding: 4px 6px;
+        vertical-align: middle
+    }
+
+    .tunnel-table th {
+        background: #e5e7eb;
+        font-weight: 600;
+        font-size: 11px;
+        line-height: 1.25;
+        padding: 4px 6px
+    }
+
+    .tunnel-table td {
+        background: #fff;
+        font-size: 12px;
+        font-weight: 400
+    }
+
+    /* Szerokości */
+    .col-kind {
+        width: 18ch;
+        max-width: 20ch
+    }
+
+    .col-code {
+        width: 9ch;
+        max-width: 9ch
+    }
+
+    .col-date {
+        width: 18ch;
+        max-width: 20ch
+    }
+
+    .col-time {
+        width: 10ch
+    }
+
+    .col-temp {
+        width: 11ch
+    }
+
+    .col-carts {
+        width: 44ch;
+        max-width: 48ch
+    }
+
+    .col-sum {
+        width: 10ch;
+        max-width: 12ch;
+        background: #f9fafb
+    }
+
+    .tunnel-table input[type="date"],
+    .tunnel-table input[type="number"],
+    .tunnel-table input[type="text"],
+    .tunnel-table select {
+        width: 100%;
+        padding: 4px 6px;
+        border: 1px solid #d1d5db;
+        border-radius: 8px;
+        background: #fff;
+        font-size: 12px;
+        line-height: 1.2;
+        height: 32px;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis
+    }
+
+    .tunnel-table td:nth-child(2) select {
+        text-align: center;
+        font-variant-numeric: tabular-nums
+    }
+
+    /* pierwsze 8 kolumn do góry */
+    .tunnel-table tbody tr>td:nth-child(-n+8) {
+        vertical-align: top;
+        padding-top: 6px
+    }
+
+    .page-tabs {
+        display: flex;
+        gap: 10px;
+        justify-content: flex-end;
+        margin: 6px 0 12px;
+        flex-wrap: wrap
+    }
+
+    .tab {
+        display: inline-block;
+        padding: 8px 14px;
+        border-radius: 10px;
+        border: 1px solid #e5e7eb;
+        background: #fff;
+        color: #111827;
+        text-decoration: none;
+        font-weight: 600;
+        line-height: 1
+    }
+
+    .tab:hover {
+        background: #f9fafb
+    }
+
+    .tab-active {
+        outline: 2px solid #93c5fd;
+        box-shadow: inset 0 0 0 1px #e5e7eb
+    }
+
+    .toolbar {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        flex-wrap: wrap;
+        margin-bottom: 12px
+    }
+
+    .toolbar-title {
+        margin: 0;
+        font-size: 28px;
+        font-weight: 800;
+        letter-spacing: .2px
+    }
+
+    .toolbar-inline {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        font-size: 16px;
+        font-weight: 600;
+        color: #111827
+    }
+
+    .toolbar-inline input[type="date"] {
+        padding: 6px 8px;
+        border: 1px solid #d1d5db;
+        border-radius: 10px;
+        background: #fff;
+        font-size: 14px;
+        line-height: 1.2;
+        height: 32px
+    }
+
+    .button {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        padding: 6px 12px;
+        border-radius: 10px;
+        border: 1px solid #e5e7eb;
+        background: #fff;
+        color: #111827;
+        text-decoration: none;
+        font-weight: 600;
+        line-height: 1;
+        cursor: pointer
+    }
+
+    .button:hover {
+        background: #f9fafb
+    }
+
+    .button.primary {
+        background: #111827;
+        color: #fff;
+        border-color: #111827
+    }
+
+    .button.primary:hover {
+        filter: brightness(1.05)
+    }
+
+    .cell-sum {
+        font-weight: 800;
+        font-size: 14px;
+        color: #111827;
+        background: #f9fafb
+    }
+
+    /* Siatka kafelków (chips) + picker jako "kafelek" (bez ramki) */
+    .chips {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 8px;
+        margin-top: 8px;
+        align-items: start
+    }
+
+    /* >>> KOMPAKTOWE CHIPSY <<< */
+    .chip-line {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        padding: 4px 6px;
+        border: 1px solid #e5e7eb;
+        background: #f9fafb;
+        border-radius: 8px;
+        min-height: 28px;
+        white-space: nowrap;
+        overflow: hidden;
+        font-weight: 400;
+        font-size: 11px;
+        position: relative;
+        /* ← OGONEK DLA IKON */
+        padding-right: 34px;
+        /* ← REZERWACJA MIEJSCA NA ✎ I × */
+    }
+
+    .chip-line .text {
+        display: inline-flex;
+        gap: 6px;
+        align-items: center;
+        min-width: 0;
+        flex: 1 1 auto
+    }
+
+    .chip-line .w {
+        font-weight: 500;
+        font-variant-numeric: tabular-nums
+    }
+
+    .chip-line .sep {
+        opacity: .6;
+        margin: 0 1px
+    }
+
+    .chip-line .c {
+        overflow: hidden;
+        text-overflow: ellipsis
+    }
+
+    /* OGONEK: ikony po prawej, poza flow tekstu */
+    .chip-line .actions {
+        position: absolute;
+        right: 6px;
+        top: 50%;
+        transform: translateY(-50%);
+        display: inline-flex;
+        gap: 6px;
+    }
+
+    .chip-line .rm {
+        margin-left: 0px;
+        border: none;
+        background: transparent;
+        cursor: pointer;
+        font-weight: 600;
+        font-size: 12px;
+        /* jak długopisik */
+        line-height: 1;
+        padding: 0;
+        color: #6b7280;
+        flex: 0 0 auto;
+    }
+
+    .chip-line .rm:hover {
+        color: #ef4444;
+    }
+
+    /* przycisk edycji (ołówek) */
+    .chip-line .edit {
+        margin-left: 2px;
+        border: none;
+        background: transparent;
+        cursor: pointer;
+        line-height: 1;
+        padding: 0;
+        flex: 0 0 auto;
+        text-decoration: none;
+        color: #6b7280;
+        font-size: 14px;
+    }
+
+    .chip-line .edit:hover {
+        color: #111827;
+    }
+
+    /* tank */
+    .chip-line .tank {
+        font-weight: 500;
+        color: #374151;
+        white-space: nowrap
+    }
+
+    /* Picker bez ramki */
+    .chip-line.picker {
+        border: none;
+        background: transparent;
+        padding: 0;
+        min-height: auto;
+        gap: 6px
+    }
+
+    .chip-line.picker select.js-cart-picker {
+        width: auto;
+        max-width: 8ch;
+        min-width: 0
+    }
+
+    .chip-line.picker .js-add-cart {
+        padding: 2px 6px;
+        font-size: 12px;
+        line-height: 1;
+        border-radius: 8px;
+        width: auto;
+        min-width: 0
+    }
+
+    /* „X” pod selectem Rodzaj batona */
+    .cell-kind {
+        padding-top: 0;
+        position: relative
+    }
+
+    .kind-body select {
+        width: 100%
+    }
+
+    .kind-foot {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        height: 20px;
+        margin-top: 4px
+    }
+
+    .row-remove {
+        width: 18px;
+        height: 18px;
+        border: none;
+        background: transparent;
+        color: #9ca3af;
+        font-weight: 800;
+        font-size: 14px;
+        line-height: 1;
+        cursor: pointer
+    }
+
+    .row-remove:hover {
+        color: #ef4444
+    }
+
+    .row-remove:focus {
+        outline: 2px solid #fde68a;
+        border-radius: 4px
+    }
+</style>
+
+<div class="page-tabs">
+    <a href="{% url 'home' %}" class="tab">Magazynek z Batonami</a>
+    <a href="{% url 'tunel' %}" class="tab tab-active">Tunel</a>
+</div>
+
+<form method="post" id="tunnel-form" novalidate>
+    {% csrf_token %}
+    <div class="toolbar">
+        <h1 class="toolbar-title">Stan tunelu chłodniczego</h1>
+        <div class="toolbar-inline"><span>z dnia</span>{{ form.production_date }}</div>
+    </div>
+
+    <table class="tunnel-table" id="tunnel-table">
+        <colgroup>
+            <col class="col-kind">
+            <col class="col-code">
+            <col class="col-date">
+            <col class="col-time">
+            <col class="col-temp">
+            <col class="col-temp">
+            <col class="col-temp">
+            <col class="col-temp">
+            <col class="col-carts">
+            <col class="col-sum">
+        </colgroup>
+        <thead>
+            <tr>
+                <th>Rodzaj batona</th>
+                <th>Kod</th>
+                <th>Data produkcji batona</th>
+                <th>Czas chłodzenia [min.]</th>
+                <th>Temperatura w tunelu chłodniczym [-24/-27°C]</th>
+                <th>Temperatura batona na wejściu do tunelu [+1/+3°C]</th>
+                <th>Temperatura otoczki batona po wyjściu z tunelu [-3.5/-5°C]</th>
+                <th>Temperatura środka batona po wyjściu z tunelu [+1/-1°C]</th>
+                <th>Pobrano do produkcji</th>
+                <th>Suma pobrania</th>
+            </tr>
+        </thead>
+        <tbody id="tunnel-tbody">
+            <!-- wiersz serwerowy -->
+            <tr class="js-row" data-mode="server" data-row-id="srv-1">
+                <td class="cell-kind">
+                    <div class="kind-body">{{ form.product_kind }}</div>
+                    <div class="kind-foot">
+                        <button type="button" class="row-remove js-del-row" title="Usuń wiersz"
+                            aria-label="Usuń wiersz">×</button>
+                    </div>
+                </td>
+                <td class="cell-code">{{ form.product_code }}</td>
+                <td class="cell-bar-date">{{ form.bar_production_date }}</td>
+                <td>{{ form.cooling_time_min }}</td>
+                <td>{{ form.temp_tunnel }}</td>
+                <td>{{ form.temp_inlet }}</td>
+                <td>{{ form.temp_shell_out }}</td>
+                <td>{{ form.temp_core_out }}</td>
+                <td>
+                    <div class="chips js-chips" id="picked_carts">
+                        <!-- picker bez ramki -->
+                        <div class="chip-line picker js-picker-box">
+                            <select id="id_cart_picker" class="js-cart-picker" disabled>
+                                <option value="" data-placeholder="1" selected>-</option>
+                            </select>
+                            <button type="button" id="btn_add_cart" class="button js-add-cart" disabled>Dodaj</button>
+                        </div>
+                    </div>
+                    <input type="hidden" name="taken_carts" id="id_taken_carts" class="js-taken-carts" value="">
+                </td>
+                <td class="cell-sum"><span class="js-sum">0.0</span> kg</td>
+            </tr>
+        </tbody>
+    </table>
+
+    <div style="margin-top:12px;display:flex;gap:8px;">
+        <button type="button" class="button" id="btn_add_row">Dodaj kolejny wiersz</button>
+        <button type="submit" class="button primary">Zapisz</button>
+    </div>
+</form>
+
+<!-- Szablon nowego wiersza -->
+<template id="row-template">
+    <tr class="js-row" data-mode="client">
+        <td class="cell-kind">
+            <div class="kind-body">
+                <select class="js-kind"><!-- opcje sklonowane --></select>
+            </div>
+            <div class="kind-foot">
+                <button type="button" class="row-remove js-del-row" title="Usuń wiersz"
+                    aria-label="Usuń wiersz">×</button>
+            </div>
+        </td>
+        <td class="cell-code">
+            <select class="js-code" disabled>
+                <option value="" data-placeholder="1" selected>-</option>
+            </select>
+        </td>
+        <td class="cell-bar-date">
+            <input type="date" class="js-bar-date" readonly
+                style="pointer-events:none;background:#f9fafb;color:#6b7280;">
+        </td>
+        <td><input type="number" name="cooling_time_min[]" min="0" step="1"></td>
+        <td><input type="number" name="temp_tunnel[]" step="0.1"></td>
+        <td><input type="number" name="temp_inlet[]" step="0.1"></td>
+        <td><input type="number" name="temp_shell_out[]" step="0.1"></td>
+        <td><input type="number" name="temp_core_out[]" step="0.1"></td>
+        <td>
+            <div class="chips js-chips">
+                <div class="chip-line picker js-picker-box">
+                    <select class="js-cart-picker" disabled>
+                        <option value="" data-placeholder="1" selected>-</option>
+                    </select>
+                    <button type="button" class="button js-add-cart" disabled>Dodaj</button>
+                </div>
+            </div>
+            <input type="hidden" name="product_kind[]" class="js-hidden-kind">
+            <input type="hidden" name="product_code[]" class="js-hidden-code">
+            <input type="hidden" name="bar_production_date[]" class="js-hidden-bar-date">
+            <input type="hidden" name="taken_carts[]" class="js-taken-carts">
+        </td>
+        <td class="cell-sum"><span class="js-sum">0.0</span> kg</td>
+    </tr>
+</template>
+
+<script>
+    (function () {
+        const tbody = document.getElementById('tunnel-tbody');
+        const addRowBtn = document.getElementById('btn_add_row');
+        const baseKindSelect = document.getElementById('id_product_kind');
+
+        const controllers = []; const removedSumCell = new WeakMap(); const usedCartNos = new Set();
+
+        const baseKindOptions = (() => { const arr = []; if (baseKindSelect) for (const opt of baseKindSelect.options) if (opt.value !== '') arr.push({ value: opt.value, text: opt.text }); return arr; })();
+        const fmtKg = n => (Math.round(n * 10) / 10).toFixed(1);
+        const raf = window.requestAnimationFrame || (cb => setTimeout(cb, 16));
+
+        async function apiGet(url, signal) { const res = await fetch(url, { headers: { 'Accept': 'application/json' }, cache: 'no-store', signal }); return await res.json(); }
+        const urlCodes = kind => `/api/magazynek/codes/?kind=${encodeURIComponent(kind)}&t=${Date.now()}`;
+        const urlLookup = (k, c) => `/api/magazynek/lookup/?kind=${encodeURIComponent(k)}&code=${encodeURIComponent(c)}&t=${Date.now()}`;
+        const urlCarts = (k, c) => `/api/magazynek/carts/?kind=${encodeURIComponent(k)}&code=${encodeURIComponent(c)}&t=${Date.now()}`;
+        const urlCartInf = (k, c, no) => `/api/magazynek/cart_info/?kind=${encodeURIComponent(k)}&code=${encodeURIComponent(c)}&cart=${encodeURIComponent(no)}&t=${Date.now()}`;
+
+        function cloneKindOptions(target) {
+            target.innerHTML = '';
+            const ph = new Option('-', '', true, true); ph.setAttribute('data-placeholder', '1'); target.appendChild(ph);
+            const src = baseKindSelect && baseKindSelect.options.length
+                ? Array.from(baseKindSelect.options).filter(o => o.value !== '')
+                : baseKindOptions;
+            for (const item of src) { target.appendChild(new Option(item.text, item.value, false, false)); }
+            target.disabled = false;
+        }
+        function ctrlOfRow(tr) { return controllers.find(c => c.tr === tr); }
+
+        function stripDiacritics(s) { return (s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, ''); }
+        function canonicalKindFrom(val, label) {
+            const raw = (val || label || '').toString().trim(); const s = stripDiacritics(raw).toLowerCase();
+            if (s.startsWith('nat')) return 'NAT'; if (s.startsWith('zio')) return 'ZIO'; if (s.startsWith('pom')) return 'POM'; return '';
+        }
+        function sortRowsByKind() {
+            const rows = Array.from(tbody.querySelectorAll('tr.js-row'));
+            rows.sort((a, b) => {
+                const ca = ctrlOfRow(a), cb = ctrlOfRow(b);
+                const va = ca?.getKindValue() || '', la = ca?.getKindLabel() || '';
+                const vb = cb?.getKindValue() || '', lb = cb?.getKindLabel() || '';
+                const ka = canonicalKindFrom(va, la), kb = canonicalKindFrom(vb, lb);
+                const order = { 'NAT': 0, 'ZIO': 1, 'POM': 2 }; const oa = (order[ka] ?? 99), ob = (order[kb] ?? 99);
+                if (oa !== ob) return oa - ob;
+                const laN = stripDiacritics(la).toLowerCase(), lbN = stripDiacritics(lb).toLowerCase();
+                if (laN !== lbN) return laN.localeCompare(lbN, 'pl'); return 0;
+            });
+            for (const r of rows) tbody.appendChild(r);
+        }
+
+        function rebuildSumGroups() {
+            for (const ctrl of controllers) {
+                let cell = ctrl.tr.querySelector('td.cell-sum');
+                if (!cell && removedSumCell.has(ctrl.tr)) { const stored = removedSumCell.get(ctrl.tr); ctrl.tr.appendChild(stored); removedSumCell.delete(ctrl.tr); cell = stored; }
+                if (cell) cell.rowSpan = 1;
+                const span = cell?.querySelector('.js-sum'); if (span) span.textContent = fmtKg(ctrl.lastSum || 0);
+            }
+            const rows = Array.from(tbody.querySelectorAll('tr.js-row'));
+            let i = 0;
+            while (i < rows.length) {
+                const c0 = ctrlOfRow(rows[i]); const key0 = c0?.getGroupKey() || ''; let j = i + 1;
+                while (j < rows.length) { const ck = ctrlOfRow(rows[j]); if ((ck?.getGroupKey() || '') === key0) j++; else break; }
+                const groupLen = j - i; let groupSum = 0; for (let k = i; k < j; k++) { groupSum += (ctrlOfRow(rows[k])?.lastSum || 0); }
+                if (key0 && groupLen > 1) {
+                    const firstCell = rows[i].querySelector('td.cell-sum');
+                    if (firstCell) { firstCell.rowSpan = groupLen; const s = firstCell.querySelector('.js-sum'); if (s) s.textContent = fmtKg(groupSum); }
+                    for (let k = i + 1; k < j; k++) { const cell = rows[k].querySelector('td.cell-sum'); if (cell) { removedSumCell.set(rows[k], cell); cell.remove(); } }
+                } else {
+                    const onlySpan = rows[i].querySelector('td.cell-sum .js-sum'); if (onlySpan) { onlySpan.textContent = fmtKg(ctrlOfRow(rows[i])?.lastSum || 0); }
+                }
+                i = j;
+            }
+        }
+        const scheduleSortAndRebuild = () => raf(() => { sortRowsByKind(); rebuildSumGroups(); });
+
+        async function refreshAllPickers() {
+            for (const ctrl of controllers) {
+                const k = ctrl.getKindValue(); const code = ctrl.codeEl?.value || '';
+                if (k && code) { await ctrl.refreshCarts(k, code); }
+            }
+        }
+
+        let autoRowId = 1;
+
+        /* ---- helpery do ekstrakcji tanka ---- */
+        function normalizeTankValue(val) {
+            if (val == null) return null;
+            if (typeof val === 'string') {
+                const m = val.match(/(\d+)/);
+                if (m) return m[1];
+                return val.trim() || null;
+            }
+            return String(val);
+        }
+        function deepFindTank(obj, depth = 0) {
+            if (!obj || typeof obj !== 'object' || depth > 3) return null;
+            for (const k of Object.keys(obj)) {
+                const v = obj[k];
+                if (/tank/i.test(k)) { const n = normalizeTankValue(v); if (n != null && n !== '') return n; }
+                if (v && typeof v === 'object') { const nested = deepFindTank(v, depth + 1); if (nested != null) return nested; }
+                if (typeof v === 'string') {
+                    const m = v.match(/\bT?\s*(\d+)\b/i);
+                    if (m && /tank|zbiornik|tanka?/i.test(k) || /tank|zbiornik/i.test(v)) return m[1];
+                }
+            }
+            return null;
+        }
+        function extractTank(data) {
+            if (!data) return null;
+            const flatKeys = ['tank_no', 'tankNo', 'tank', 'tank_id', 'tankId', 'tank_number', 'tankNumber', 'tank_nr', 'tankNr'];
+            for (const k of flatKeys) {
+                if (Object.prototype.hasOwnProperty.call(data, k)) {
+                    const n = normalizeTankValue(data[k]); if (n != null && n !== '') return n;
+                }
+            }
+            for (const k of ['label', 'name', 'title', 'description', 'desc']) {
+                if (data[k] && typeof data[k] === 'string') {
+                    const m = data[k].match(/\bT?\s*(\d+)\b/);
+                    if (m && /\b(T|tank|zbiornik)\b/i.test(data[k])) return m[1];
+                }
+            }
+            return deepFindTank(data, 0);
+        }
+        /* ------------------------------------- */
+
+        class RowController {
+            constructor(tr) {
+                this.tr = tr; this.tr.dataset.rowId = this.tr.dataset.rowId || `cli-${++autoRowId}`;
+                this.mode = tr.dataset.mode || 'client';
+                this.selected = new Map(); this.lastSum = 0;
+
+                if (this.mode === 'server') {
+                    this.kindEl = document.getElementById('id_product_kind');
+                    this.codeEl = document.getElementById('id_product_code');
+                    this.barDateEl = document.getElementById('id_bar_production_date');
+                    this.chipsWrap = tr.querySelector('.js-chips');
+                    this.pickerBox = tr.querySelector('.js-picker-box');
+                    this.cartPickerEl = tr.querySelector('.js-cart-picker');
+                    this.addCartBtn = tr.querySelector('.js-add-cart');
+                    this.delRowBtn = tr.querySelector('.js-del-row');
+                    this.takenEl = document.getElementById('id_taken_carts');
+                } else {
+                    this.kindEl = tr.querySelector('.js-kind');
+                    this.codeEl = tr.querySelector('.js-code');
+                    this.barDateEl = tr.querySelector('.js-bar-date');
+                    this.chipsWrap = tr.querySelector('.js-chips');
+                    this.pickerBox = tr.querySelector('.js-picker-box');
+                    this.cartPickerEl = tr.querySelector('.js-cart-picker');
+                    this.addCartBtn = tr.querySelector('.js-add-cart');
+                    this.delRowBtn = tr.querySelector('.js-del-row');
+                    this.takenEl = tr.querySelector('.js-taken-carts');
+                    this.hKind = tr.querySelector('.js-hidden-kind');
+                    this.hCode = tr.querySelector('.js-hidden-code');
+                    this.hBarDate = tr.querySelector('.js-hidden-bar-date');
+                }
+                this.sumEl = tr.querySelector('.js-sum');
+
+                if (this.mode === 'client' && this.kindEl) { cloneKindOptions(this.kindEl); }
+                this.ensureCodeDisabledIfNoKind();
+                this.setCartControlsEnabled(false);
+                if (this.barDateEl) { this.barDateEl.readOnly = true; this.barDateEl.style.pointerEvents = 'none'; this.barDateEl.style.background = '#f9fafb'; this.barDateEl.style.color = '#6b7280'; }
+
+                this.kindEl?.addEventListener('change', () => this.onKindChange());
+                if (this.codeEl) {
+                    const deb = this.debounce(() => this.lookupAndFill(), 200);
+                    this.codeEl.addEventListener('input', deb);
+                    this.codeEl.addEventListener('change', deb);
+                }
+                this.addCartBtn?.addEventListener('click', () => this.onAddCart());
+                this.chipsWrap?.addEventListener('click', e => {
+                    const btn = e.target.closest('button.rm[data-no]'); if (!btn) return;
+                    const no = btn.getAttribute('data-no'); usedCartNos.delete(no);
+                    this.selected.delete(no); this.renderPicked(); refreshAllPickers();
+                });
+                this.delRowBtn?.addEventListener('click', () => this.onDeleteRow());
+
+                if (this.mode === 'server' && this.kindEl?.value) {
+                    this.refreshCodesForKind().then(() => { if (this.codeEl?.value) this.lookupAndFill(); });
+                }
+            }
+            debounce(fn, ms) { let t; return (...a) => { clearTimeout(t); t = setTimeout(() => fn(...a), ms); }; }
+            ensureCodeDisabledIfNoKind() { if (!this.kindEl || !this.codeEl) return; this.codeEl.disabled = !this.kindEl.value; }
+            setCartControlsEnabled(en) { this.cartPickerEl && (this.cartPickerEl.disabled = !en); this.addCartBtn && (this.addCartBtn.disabled = !en); }
+
+            getKindValue() { return (this.kindEl?.value || '').trim(); }
+            getKindLabel() { return (this.kindEl?.selectedOptions?.[0]?.text || '').trim(); }
+            getGroupKey() { const canon = canonicalKindFrom(this.getKindValue(), this.getKindLabel()); return canon ? `canon:${canon}` : 'lbl:' + (this.getKindLabel() || this.getKindValue()); }
+
+            updateTotal() {
+                let sum = 0;
+                for (const v of this.selected.values()) {
+                    const w = (v && typeof v === 'object') ? v.kg : v;  // zgodność wsteczna
+                    if (Number.isFinite(w)) sum += w;
+                }
+                this.lastSum = Math.round(sum * 10) / 10; if (this.sumEl) this.sumEl.textContent = fmtKg(this.lastSum);
+                scheduleSortAndRebuild();
+            }
+
+            renderPicked() {
+                if (!this.chipsWrap) return;
+                this.chipsWrap.innerHTML = '';
+
+                const arr = [...this.selected.keys()].sort((a, b) => Number(a) - Number(b));
+                for (const no of arr) {
+                    const info = this.selected.get(no);
+                    const kg = (info && typeof info === 'object') ? info.kg : info;
+                    const tank = (info && typeof info === 'object') ? info.tank : null;
+
+                    const label = Number.isFinite(kg) ? `${fmtKg(kg)} kg` : '… kg';
+
+                    const line = document.createElement('div'); line.className = 'chip-line';
+                    const text = document.createElement('div'); text.className = 'text';
+
+                    const w = document.createElement('span'); w.className = 'w'; w.textContent = label;
+                    const sep = document.createElement('span'); sep.className = 'sep'; sep.textContent = '|';
+                    const c = document.createElement('span'); c.className = 'c'; c.textContent = `W${no}`;
+
+                    text.append(w, sep, c);
+
+                    if (tank != null && tank !== '') {
+                        const sep2 = document.createElement('span'); sep2.className = 'sep'; sep2.textContent = '|';
+                        const t = document.createElement('span'); t.className = 'tank'; t.textContent = `T${tank}`;
+                        text.append(sep2, t);
+                    }
+
+                    const rm = document.createElement('button'); rm.className = 'rm'; rm.type = 'button';
+                    rm.setAttribute('data-no', no); rm.textContent = '×';
+
+                    // ✎ Edycja masy – jeżeli API zwróciło link
+                    let edit = null;
+                    if (info && typeof info === 'object' && info.editUrl) {
+                        edit = document.createElement('a');
+                        edit.className = 'edit';
+                        edit.href = info.editUrl;
+                        edit.title = 'Edytuj masę wózka';
+                        edit.setAttribute('aria-label', 'Edytuj masę wózka');
+                        edit.textContent = '✎';
+                    }
+
+                    /* >>> OGONEK Z IKONAMI PO PRAWEJ <<< */
+                    const actions = document.createElement('div');
+                    actions.className = 'actions';
+                    actions.append(rm);
+                    if (edit) actions.append(edit);
+
+                    line.append(text, actions);
+                    this.chipsWrap.append(line);
+                }
+
+                // picker jako ostatni „kafelek”
+                if (this.pickerBox) { this.chipsWrap.append(this.pickerBox); }
+
+                if (this.takenEl) this.takenEl.value = arr.join(',');
+                this.updateTotal();
+            }
+
+            async onKindChange() {
+                await this.refreshCodesForKind();
+                for (const no of this.selected.keys()) usedCartNos.delete(no);
+                this.selected.clear(); this.renderPicked();
+                if (this.barDateEl) this.barDateEl.value = '';
+                this.ensureCodeDisabledIfNoKind();
+                if (this.mode === 'client' && this.hKind) this.hKind.value = this.kindEl?.value || '';
+                await refreshAllPickers();
+                scheduleSortAndRebuild();
+            }
+
+            async onAddCart() {
+                const no = this.cartPickerEl?.value; if (!no) return;
+                if (usedCartNos.has(no)) return;
+                usedCartNos.add(no);
+                if (!this.selected.has(no)) {
+                    this.selected.set(no, { kg: null, tank: null, loadId: null, editUrl: null });
+                    this.renderPicked();
+                    await this.attachCartWeight(no);
+                }
+                await refreshAllPickers();
+            }
+
+            async refreshCodesForKind() {
+                if (!this.kindEl || !this.codeEl) return;
+                const kind = this.kindEl.value;
+                this.codeEl.innerHTML = '<option value="" data-placeholder="1" selected>-</option>';
+                if (this.mode === 'client' && this.hKind) this.hKind.value = kind || '';
+                if (!kind) { this.codeEl.disabled = true; this.setCartControlsEnabled(false); return; }
+                try {
+                    const data = await apiGet(urlCodes(kind));
+                    const opts = ['<option value="" data-placeholder="1" selected>-</option>'];
+                    if (Array.isArray(data.codes)) { for (const c of data.codes) { opts.push(`<option value="${String(c)}">${String(c)}</option>`); } }
+                    this.codeEl.innerHTML = opts.join(''); this.codeEl.disabled = false;
+                } catch (e) {
+                    console.warn('Nie udało się pobrać listy kodów:', e);
+                    this.codeEl.innerHTML = '<option value="" data-placeholder="1" selected>— błąd —</option>'; this.codeEl.disabled = true;
+                }
+            }
+
+            async lookupAndFill() {
+                const kind = this.kindEl?.value, code = this.codeEl?.value;
+                if (!kind || !code) {
+                    this.codeEl?.setCustomValidity?.(''); if (this.barDateEl) this.barDateEl.value = ''; this.setCartControlsEnabled(false);
+                    for (const no of this.selected.keys()) usedCartNos.delete(no);
+                    this.selected.clear(); this.renderPicked(); await refreshAllPickers(); return;
+                }
+                try {
+                    const data = await apiGet(urlLookup(kind, code));
+                    if (!data.found) {
+                        this.codeEl?.setCustomValidity?.('Taki kod nie występuje dla wybranego rodzaju batona (na magazynku).');
+                        this.setCartControlsEnabled(false);
+                        for (const no of this.selected.keys()) usedCartNos.delete(no);
+                        this.selected.clear(); this.renderPicked(); await refreshAllPickers();
+                    } else {
+                        this.codeEl?.setCustomValidity?.('');
+                        if (this.barDateEl && data.latest_packing_date_iso) {
+                            const iso = data.latest_packing_date_iso;
+                            if (this.barDateEl.type === 'date') this.barDateEl.value = iso.slice(0, 10);
+                            else if (this.barDateEl.type === 'datetime-local') this.barDateEl.value = iso.slice(0, 16);
+                            else this.barDateEl.value = iso;
+                        } else if (this.barDateEl) { this.barDateEl.value = ''; }
+                        if (this.mode === 'client') { this.hCode && (this.hCode.value = code || ''); this.hBarDate && (this.hBarDate.value = this.barDateEl?.value || ''); }
+                        await this.refreshCarts(kind, code);
+                    }
+                    this.codeEl?.reportValidity?.();
+                    scheduleSortAndRebuild();
+                } catch (e) {
+                    console.error('Lookup error:', e);
+                    this.codeEl?.setCustomValidity?.(''); this.setCartControlsEnabled(false);
+                    for (const no of this.selected.keys()) usedCartNos.delete(no);
+                    this.selected.clear(); this.renderPicked(); await refreshAllPickers();
+                }
+            }
+
+            async refreshCarts(kind, code) {
+                try {
+                    const data = await apiGet(urlCarts(kind, code));
+                    const hasAny = data.carts && data.carts.length;
+                    this.cartPickerEl.innerHTML = `<option value="" data-placeholder="1" selected>${hasAny ? '-' : '— brak wózków —'}</option>`;
+                    if (Array.isArray(data.carts)) {
+                        for (const no of data.carts) {
+                            const str = String(no); if (usedCartNos.has(str)) continue;
+                            const opt = document.createElement('option'); opt.value = str; opt.textContent = str; this.cartPickerEl.appendChild(opt);
+                        }
+                    }
+                    this.setCartControlsEnabled(!!hasAny);
+                } catch (e) {
+                    console.warn('Nie udało się pobrać listy wózków:', e);
+                    this.cartPickerEl.innerHTML = '<option value="" data-placeholder="1" selected>— błąd pobierania —</option>';
+                    this.setCartControlsEnabled(false);
+                }
+            }
+
+            async attachCartWeight(no) {
+                const kind = this.kindEl?.value, code = this.codeEl?.value; if (!kind || !code || !no) return;
+                try {
+                    const data = await apiGet(urlCartInf(kind, code, no));
+                    let kg = null, tank = null, loadId = null, editUrl = null;
+                    if (data) {
+                        if (data.total_weight_kg != null) {
+                            const v = Number(data.total_weight_kg);
+                            kg = Number.isFinite(v) ? Math.round(v * 10) / 10 : null;
+                        }
+                        tank = extractTank(data);
+                        loadId = data.load_id ?? null;
+                        editUrl = data.edit_url ?? null;
+                    }
+                    if (this.selected.has(no)) {
+                        this.selected.set(no, { kg, tank, loadId, editUrl });
+                        this.renderPicked();
+                    }
+                } catch (e) {
+                    if (this.selected.has(no)) {
+                        this.selected.set(no, { kg: null, tank: null, loadId: null, editUrl: null });
+                        this.renderPicked();
+                    }
+                    console.warn('Nie udało się pobrać masy/tanka dla wózka:', no, e);
+                }
+            }
+
+            async onDeleteRow() {
+                for (const no of this.selected.keys()) usedCartNos.delete(no);
+                const idx = controllers.indexOf(this); if (idx >= 0) controllers.splice(idx, 1);
+                this.tr.remove(); await refreshAllPickers(); scheduleSortAndRebuild();
+            }
+        }
+
+        // wiersz serwerowy
+        const firstRow = tbody.querySelector('tr.js-row[data-mode="server"]');
+        const firstCtrl = new RowController(firstRow); controllers.push(firstCtrl);
+
+        // dodawanie nowych
+        addRowBtn.addEventListener('click', () => {
+            const tpl = document.getElementById('row-template');
+            const frag = document.importNode(tpl.content, true);
+            tbody.appendChild(frag);
+            const tr = tbody.lastElementChild;
+            const ctrl = new RowController(tr); controllers.push(ctrl);
+            scheduleSortAndRebuild();
+        });
+
+        // start
+        scheduleSortAndRebuild();
+    })();
+</script>
+
+{% endblock %}
