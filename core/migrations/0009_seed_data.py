@@ -2,9 +2,10 @@ from django.db import migrations
 from django.conf import settings
 from django.contrib.auth.hashers import make_password
 
-
 def seed_initial_data(apps, schema_editor):
-    User = apps.get_model(settings.AUTH_USER_MODEL)
+    # Pobierz model użytkownika zgodnie z AUTH_USER_MODEL
+    app_label, model_name = settings.AUTH_USER_MODEL.split(".")
+    User = apps.get_model(app_label, model_name)
 
     if not User.objects.filter(username="admin").exists():
         User.objects.create(
@@ -15,17 +16,20 @@ def seed_initial_data(apps, schema_editor):
             is_superuser=True,
         )
 
+    # Przykładowy wózek – opcjonalnie, usuń jeśli nie chcesz
     Cart = apps.get_model("core", "Cart")
     if not Cart.objects.filter(number=999).exists():
         Cart.objects.create(number=999)
 
+def noop_reverse(apps, schema_editor):
+    # Nie usuwamy admina przy rollbacku
+    pass
 
 class Migration(migrations.Migration):
-
     dependencies = [
-        ("core", "0001_initial"),  # dopasuj do pierwszej migracji
+        ("core", "0008_load_initial_weight_kg"),  # KLUCZ: po ostatniej Twojej migracji
     ]
 
     operations = [
-        migrations.RunPython(seed_initial_data),
+        migrations.RunPython(seed_initial_data, noop_reverse),
     ]
