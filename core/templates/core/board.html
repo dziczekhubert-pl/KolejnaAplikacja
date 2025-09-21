@@ -22,10 +22,7 @@
         --bar-r: 10px;
     }
 
-    .grid-wrap {
-        overflow: visible;
-        padding-right: 0;
-    }
+    .grid-wrap { overflow: visible; padding-right: 0; }
 
     .grid {
         display: grid;
@@ -45,27 +42,17 @@
         flex-direction: column;
         transition: box-shadow .15s ease, transform .15s ease;
     }
+    .cart-card:hover { box-shadow: 0 2px 6px rgba(0, 0, 0, .08); transform: translateY(-1px); }
 
-    .cart-card:hover {
-        box-shadow: 0 2px 6px rgba(0, 0, 0, .08);
-        transform: translateY(-1px);
-    }
-
-    /* kolory kafelków pełnych */
-    .highlight-natural {
-        background: var(--col-naturalny);
-        border: 1px solid #94c8ff;
-    }
+    .highlight-natural { background: var(--col-naturalny); border: 1px solid #94c8ff; }
     .highlight-ziołowy { background: var(--col-ziolowy); }
     .highlight-pomidorowy { background: var(--col-pomidor); }
 
-    /* puste kafelki = identyczne wypełnienie jak segment "Puste" */
     .cart-card.is-empty {
         background: var(--col-empty);
         border: 1px solid #d1d5db;
         background-image: repeating-linear-gradient(45deg,
-                rgba(0, 0, 0, 0.04) 0, rgba(0, 0, 0, 0.04) 6px,
-                transparent 6px, transparent 12px);
+            rgba(0,0,0,0.04) 0, rgba(0,0,0,0.04) 6px, transparent 6px, transparent 12px);
     }
 
     .cart-title {
@@ -78,213 +65,93 @@
         text-overflow: ellipsis;
     }
 
-    .muted {
-        color: #6b7280;
-        font-size: var(--fs-body);
-        line-height: var(--lh-body);
-        margin: 1px 0;
-    }
+    .muted { color:#6b7280; font-size: var(--fs-body); line-height: var(--lh-body); margin:1px 0; }
+    .tight { margin:0; font-size:var(--fs-body); line-height:var(--lh-body); white-space:normal; word-break:break-word; }
 
-    .tight {
-        margin: 0;
-        font-size: var(--fs-body);
-        line-height: var(--lh-body);
-        white-space: normal;
-        word-break: break-word;
-    }
-
-    /* pozycja przycisku X */
-    .cart-delete-form {
+    .cart-iconbar {
         position: absolute;
-        top: 4px;
-        right: 4px;
-        margin: 0;
+        top: 4px; right: 4px;
+        display: inline-flex; gap: 4px; margin: 0;
     }
+    .icon, .icon-btn, .icon-link {
+        width: 22px; height: 22px; display:inline-flex; align-items:center; justify-content:center;
+        border:none; border-radius:4px; background:transparent; color:inherit; text-decoration:none;
+        font-size:14px; line-height:0; cursor:pointer; padding:0; transition: background .15s ease;
+    }
+    .icon:hover, .icon-btn:hover, .icon-link:hover { background: rgba(0,0,0,.06); }
 
-    .cart-delete-btn {
-        border: none;
-        background: transparent;
-        font-size: 14px;
-        line-height: 1;
-        cursor: pointer;
-        padding: 0 4px;
-        border-radius: 4px;
-    }
-    .cart-delete-btn:hover { background: rgba(0, 0, 0, .06); }
+    .cart-delete-btn { composes: icon; }
 
-    .card-btn {
-        display: inline-block;
-        border: 1px solid #ddd;
-        background: #fff;
-        padding: 4px 6px;
-        border-radius: 6px;
-        cursor: pointer;
-        font-size: var(--fs-body);
-        line-height: var(--lh-body);
-        color: #333;
-        text-decoration: none;
-        transition: background .15s ease, box-shadow .15s ease;
-    }
-    .card-btn:hover { background: #f2f2f2; }
+    .alert { padding:6px 8px; border-radius:6px; margin:4px 0 8px; font-size:var(--fs-body); }
+    .alert-success { background:#ecfdf5; color:#065f46; border:1px solid #a7f3d0; }
 
-    .actions {
-        display: flex;
-        gap: 6px;
-        margin-top: 6px;
-    }
-
-    .alert {
-        padding: 6px 8px;
-        border-radius: 6px;
-        margin: 4px 0 8px;
-        font-size: var(--fs-body);
-    }
-    .alert-success {
-        background: #ecfdf5;
-        color: #065f46;
-        border: 1px solid #a7f3d0;
-    }
-
-    /* ===== górne zakładki (Podgląd / Tunel) ===== */
-    .page-tabs {
-        display: flex;
-        gap: 10px;
-        justify-content: flex-end;
-        margin: 6px 0 12px;
-        flex-wrap: wrap;
-    }
+    .page-tabs { display:flex; gap:10px; justify-content:flex-end; margin:6px 0 12px; flex-wrap:wrap; }
     .tab {
-        display: inline-block;
-        padding: 8px 14px;
-        border-radius: 10px;
-        border: 1px solid #e5e7eb;
-        background: #fff;
-        color: #111827;
-        text-decoration: none;
-        font-weight: 600;
-        line-height: 1;
+        display:inline-block; padding:8px 14px; border-radius:10px; border:1px solid #e5e7eb;
+        background:#fff; color:#111827; text-decoration:none; font-weight:600; line-height:1;
     }
-    .tab:hover { background: #f9fafb; }
-    .tab-active { outline: 2px solid #93c5fd; box-shadow: inset 0 0 0 1px #e5e7eb; }
+    .tab:hover { background:#f9fafb; }
+    .tab-active { outline:2px solid #93c5fd; box-shadow: inset 0 0 0 1px #e5e7eb; }
 
-    /* ===== nagłówek + pasek ===== */
-    .toolbar {
-        display: flex;
-        align-items: center;
-        gap: 16px;
-        flex-wrap: wrap;
-        margin-bottom: 6px;
-    }
-    .toolbar-title {
-        margin: 0;
-        font-size: 28px;
-        font-weight: 800;
-        letter-spacing: .2px;
-    }
+    .toolbar { display:flex; align-items:center; gap:16px; flex-wrap:wrap; margin-bottom:6px; }
+    .toolbar-title { margin:0; font-size:28px; font-weight:800; letter-spacing:.2px; }
 
-    .stockbar-wrap {
-        display: flex;
-        flex-direction: column;
-        gap: 6px;
-        flex: 1 1 520px;
-        max-width: 800px;
-        width: 100%;
-        min-width: 320px;
-    }
-    .stockbar-labels, .stockbar { width: 100%; align-self: stretch; }
-
-    .stockbar-labels { display: flex; gap: 0; }
-    .stockbar-labels .lab {
-        text-align: center;
-        padding-bottom: 2px;
-        display: grid;
-        justify-items: center;
-        align-content: end;
-    }
-    .stockbar-labels strong { font-size: 16px; line-height: 1.1; }
-    .stockbar-labels .kg { font-size: 12px; opacity: .9; }
-    .stockbar-labels span { font-size: 12px; color: #374151; }
+    .stockbar-wrap { display:flex; flex-direction:column; gap:6px; flex:1 1 520px; max-width:800px; width:100%; min-width:320px; }
+    .stockbar-labels, .stockbar { width:100%; align-self:stretch; }
+    .stockbar-labels { display:flex; gap:0; }
+    .stockbar-labels .lab { text-align:center; padding-bottom:2px; display:grid; justify-items:center; align-content:end; }
+    .stockbar-labels strong { font-size:16px; line-height:1.1; }
+    .stockbar-labels .kg { font-size:12px; opacity:.9; }
+    .stockbar-labels span { font-size:12px; color:#374151; }
 
     .stockbar {
-        position: relative;
-        height: var(--bar-h);
-        border-radius: var(--bar-r);
-        border: 1px solid #e5e7eb;
-        overflow: hidden;
-        background: #fafafa;
-        display: flex;
+        position:relative; height:var(--bar-h); border-radius:var(--bar-r);
+        border:1px solid #e5e7eb; overflow:hidden; background:#fafafa; display:flex;
     }
-    .stockbar-seg { height: 100%; flex: 0 0 auto; }
+    .stockbar-seg { height:100%; flex:0 0 auto; }
     .seg-naturalny { background: var(--col-naturalny); }
     .seg-ziolowy { background: var(--col-ziolowy); }
     .seg-pomidorowy { background: var(--col-pomidor); }
     .seg-empty {
         background: var(--col-empty);
-        background-image: repeating-linear-gradient(45deg,
-                rgba(0, 0, 0, 0.04) 0, rgba(0, 0, 0, 0.04) 6px, transparent 6px, transparent 12px);
+        background-image: repeating-linear-gradient(45deg, rgba(0,0,0,0.04) 0, rgba(0,0,0,0.04) 6px, transparent 6px, transparent 12px);
     }
 
-    /* Prawy koniec wiersza: przycisk + partia wózków */
-    .toolbar-actions {
-        margin-left: auto;
-        display: flex;
-        align-items: center;
-    }
+    .toolbar-actions { margin-left:auto; display:flex; align-items:center; }
     .btn-primary {
-        display: inline-block;
-        padding: 8px 10px;
-        border-radius: 8px;
-        font-weight: 600;
-        border: 1px solid #059669;
-        background: #10b981;
-        color: #fff;
-        text-decoration: none;
-        line-height: 1;
-        transition: filter .15s ease, transform .05s ease;
-        white-space: nowrap;
+        display:inline-block; padding:8px 10px; border-radius:8px; font-weight:600;
+        border:1px solid #059669; background:#10b981; color:#fff; text-decoration:none; line-height:1;
+        transition: filter .15s ease, transform .05s ease; white-space:nowrap;
     }
     .btn-primary:hover { filter: brightness(0.95); }
     .btn-primary:active { transform: translateY(1px); }
 
-    /* === MODAL POTWIERDZENIA USUWANIA === */
     .modal-backdrop {
-        position: fixed; inset: 0; background: rgba(0,0,0,.45);
-        display: none; align-items: center; justify-content: center; z-index: 1000;
+        position:fixed; inset:0; background:rgba(0,0,0,.45); display:none;
+        align-items:center; justify-content:center; z-index:1000;
     }
-    .modal-backdrop[aria-hidden="false"] { display: flex; }
-    .modal {
-        width: min(520px, 92vw); background: #fff; border-radius: 12px;
-        box-shadow: 0 10px 30px rgba(0,0,0,.2); overflow: hidden;
-    }
-    .modal-header { padding: 14px 16px; border-bottom: 1px solid #eee; font-weight: 700; font-size: 16px; }
-    .modal-body { padding: 16px; font-size: 14px; line-height: 1.5; }
-    .modal-actions { display: flex; gap: 8px; justify-content: flex-end; padding: 12px 16px 16px; }
-    .btn { display: inline-flex; align-items: center; justify-content: center; gap: 6px;
-           padding: 8px 14px; border-radius: 10px; border: 1px solid #e5e7eb; background: #fff;
-           color: #111827; font-weight: 600; cursor: pointer; }
-    .btn:hover { background: #f9fafb; }
-    .btn-danger { background: #ef4444; border-color: #ef4444; color: #fff; }
+    .modal-backdrop[aria-hidden="false"] { display:flex; }
+    .modal { width:min(520px,92vw); background:#fff; border-radius:12px; box-shadow:0 10px 30px rgba(0,0,0,.2); overflow:hidden; }
+    .modal-header { padding:14px 16px; border-bottom:1px solid #eee; font-weight:700; font-size:16px; }
+    .modal-body { padding:16px; font-size:14px; line-height:1.5; }
+    .modal-actions { display:flex; gap:8px; justify-content:flex-end; padding:12px 16px 16px; }
+    .btn { display:inline-flex; align-items:center; justify-content:center; gap:6px; padding:8px 14px; border-radius:10px; border:1px solid #e5e7eb; background:#fff; color:#111827; font-weight:600; cursor:pointer; }
+    .btn:hover { background:#f9fafb; }
+    .btn-danger { background:#ef4444; border-color:#ef4444; color:#fff; }
     .btn-danger:hover { filter: brightness(.95); }
 </style>
 
-{% if messages %}
-  {% for message in messages %}
-    <div class="alert alert-success">{{ message }}</div>
-  {% endfor %}
-{% endif %}
+{# UWAGA: usunięto lokalne renderowanie messages, żeby nie dublować flashy z base.html #}
 
-<!-- Zakładki: Podgląd (aktywna) + Tunel (szary, neutralny) -->
 <div class="page-tabs">
     <a href="{% url 'home' %}" class="tab tab-active">Mag. Chłodniczy</a>
     <a href="{% url 'tunel' %}" class="tab">Tunel</a>
 </div>
 
-<!-- Nagłówek + wizualizacja w jednym wierszu -->
 <div class="toolbar">
     <h1 class="toolbar-title">Stan magazynku chłodniczego</h1>
 
     <div class="stockbar-wrap">
-        <!-- Etykiety (pokazuję tylko gdy count > 0) -->
         <div class="stockbar-labels" id="stockbar-labels">
             <div class="lab lab-naturalny" style="display:none;">
                 <strong id="cnt-naturalny">0 <span class="kg">(0 kg)</span></strong><span>Naturalny</span>
@@ -295,13 +162,11 @@
             <div class="lab lab-pomidorowy" style="display:none;">
                 <strong id="cnt-pomidorowy">0 <span class="kg">(0 kg)</span></strong><span>Pomidorowy</span>
             </div>
-            <!-- Puste: bez kg -->
             <div class="lab lab-empty" style="display:none;">
                 <strong id="cnt-empty">0</strong><span>Puste</span>
             </div>
         </div>
 
-        <!-- Pasek postępu (szerokości wg LICZBY WÓZKÓW, a nie kg) -->
         <div class="stockbar" id="stockbar">
             <div class="stockbar-seg seg-naturalny" style="width:0%"></div>
             <div class="stockbar-seg seg-ziolowy" style="width:0%"></div>
@@ -310,7 +175,6 @@
         </div>
     </div>
 
-    <!-- PRZYCISK NA KOŃCU WIERSZA (po prawej stronie paska) -->
     <div class="toolbar-actions">
         <a href="{% url 'new_batch' %}" class="btn-primary">+ partia wózków</a>
     </div>
@@ -325,45 +189,47 @@
           {% if load and load.get_product_kind_display == 'Ziołowy' %}highlight-ziołowy{% endif %}
           {% if load and load.get_product_kind_display == 'Pomidorowy' %}highlight-pomidorowy{% endif %}
           {% if not load %}is-empty{% endif %}"
-          {% if load %} title="Wprowadził: {% if load.handled_by %}{{ load.handled_by }}{% else %}—{% endif %}
+          {% if load %}
+            title="Wprowadził: {% if load.handled_by %}{{ load.handled_by }}{% else %}—{% endif %}
                  | Masa początkowa: {{ load.initial_weight_kg }} kg
                  | Masa aktualna: {{ load.total_weight_kg }} kg{% if load.edited_by %}
-                 | Edytował: {{ load.edited_by }} ({{ load.edited_at|date:'d.m.Y H:i' }}){% endif %}" {% else %}
-            title="Wózek pusty" {% endif %}>
-
-            <!-- X: TYLKO otwiera modal; brak natychmiastowego submitu -->
-            <div class="cart-delete-form">
-                <button
-                    type="button"
-                    class="cart-delete-btn"
-                    aria-label="Usuń wózek"
-                    title="Usuń wózek"
-                    data-delete-url="{% url 'delete_cart' cart.id %}"
-                    data-cart-name="Wózek {{ cart.number|default:cart.id }}"
-                >&times;</button>
-            </div>
-
-            <h3 class="cart-title">Wózek {{ cart.number|default:cart.id }}</h3>
+                 | Edytował: {{ load.edited_by }} ({{ load.edited_at|date:'d.m.Y H:i' }}){% endif %}"
+          {% else %}
+            title="Wózek pusty"
+          {% endif %}>
 
             {% if load %}
-                <p class="tight"><strong>
-                    {{ load.get_product_kind_display|default:load.product_kind }}
-                    {{ load.product_code }}
-                    {% if load.tank %}Tank {{ load.tank }}{% endif %}
-                </strong></p>
-
-                <p class="muted">Masa: {{ load.total_weight_kg }} kg</p>
-                <p class="muted">Od: {{ load.produced_at|default:load.packing_date|date:"Y-m-d H:i" }}</p>
-
-                <div class="actions">
-                    <form method="post" action="{% url 'take_to_production' load.id %}">
-                        {% csrf_token %}
-                        <button type="submit" class="card-btn">Zdejmij</button>
-                    </form>
-                    <a href="{% url 'edit_load' load.id %}" class="card-btn">Edytuj</a>
-                </div>
+            <div class="cart-iconbar">
+                <a href="{% url 'edit_load' load.id %}" class="icon-link icon" aria-label="Edytuj" title="Edytuj">✎</a>
+                <form method="post" action="{% url 'take_to_production' load.id %}" class="inline-form">
+                    {% csrf_token %}
+                    <button type="submit" class="icon-btn icon" aria-label="Zdejmij wózek" title="Zdejmij wózek">⬇</button>
+                </form>
+                <button type="button" class="cart-delete-btn icon" aria-label="Usuń wózek" title="Usuń wózek"
+                        data-delete-url="{% url 'delete_cart' cart.id %}"
+                        data-cart-name="Wózek {{ cart.number|default:cart.id }}">🗑</button>
+            </div>
             {% else %}
-                <p class="muted">Brak ładunku.</p>
+            <div class="cart-iconbar">
+                <button type="button" class="cart-delete-btn icon" aria-label="Usuń wózek" title="Usuń wózek"
+                        data-delete-url="{% url 'delete_cart' cart.id %}"
+                        data-cart-name="Wózek {{ cart.number|default:cart.id }}">🗑</button>
+            </div>
+            {% endif %}
+
+            <h3 class="cart-title">W {{ cart.number|default:cart.id }}</h3>
+
+            {% if load %}
+            <p class="tight"><strong>
+                {{ load.get_product_kind_display|default:load.product_kind }}
+                {{ load.product_code }}
+                {% if load.tank %}Tank {{ load.tank }}{% endif %}
+            </strong></p>
+
+            <p class="muted">Masa: {{ load.total_weight_kg }} kg</p>
+            <p class="muted">Od: {{ load.produced_at|default:load.packing_date|date:"Y-m-d H:i" }}</p>
+            {% else %}
+            <p class="muted">Brak ładunku.</p>
             {% endif %}
         </div>
         {% endwith %}
@@ -373,12 +239,10 @@
     </div>
 </div>
 
-<!-- Ukryty globalny formularz POST do usuwania (na potrzeby potwierdzenia) -->
 <form id="cart-delete-post" method="post" style="display:none;">
     {% csrf_token %}
 </form>
 
-<!-- Modal potwierdzenia usuwania -->
 <div id="confirm-modal-backdrop" class="modal-backdrop" aria-hidden="true">
     <div class="modal" role="dialog" aria-modal="true" aria-labelledby="confirm-title">
         <div class="modal-header" id="confirm-title">Potwierdzenie</div>
@@ -391,113 +255,107 @@
 </div>
 
 <script>
-    // Pasek i etykiety
-    document.addEventListener('DOMContentLoaded', function () {
-        const cards = Array.from(document.querySelectorAll('.cart-card'));
+document.addEventListener('DOMContentLoaded', function () {
+    const cards = Array.from(document.querySelectorAll('.cart-card'));
+    const cnt = {
+        nat: cards.filter(c => c.classList.contains('highlight-natural')).length,
+        zio: cards.filter(c => c.classList.contains('highlight-ziołowy')).length,
+        pom: cards.filter(c => c.classList.contains('highlight-pomidorowy')).length,
+        emp: cards.filter(c => c.classList.contains('is-empty')).length,
+    };
+    const totalCnt = cnt.nat + cnt.zio + cnt.pom + cnt.emp;
 
-        const cnt = {
-            nat: cards.filter(c => c.classList.contains('highlight-natural')).length,
-            zio: cards.filter(c => c.classList.contains('highlight-ziołowy')).length,
-            pom: cards.filter(c => c.classList.contains('highlight-pomidorowy')).length,
-            emp: cards.filter(c => c.classList.contains('is-empty')).length,
-        };
-        const totalCnt = cnt.nat + cnt.zio + cnt.pom + cnt.emp;
+    const kg = { nat: 0, zio: 0, pom: 0, emp: 0 };
+    cards.forEach(c => {
+        if (c.classList.contains('is-empty')) return;
+        const p = Array.from(c.querySelectorAll('p')).find(el => /Masa:/i.test(el.textContent));
+        if (!p) return;
+        const m = (p.textContent || '').match(/([0-9]+(?:[.,][0-9]+)?)/);
+        if (!m) return;
+        const v = parseFloat(m[1].replace(',', '.')) || 0;
 
-        const kg = { nat: 0, zio: 0, pom: 0, emp: 0 };
-        cards.forEach(c => {
-            if (c.classList.contains('is-empty')) return;
-            const p = Array.from(c.querySelectorAll('p')).find(el => /Masa:/i.test(el.textContent));
-            if (!p) return;
-            const m = (p.textContent || '').match(/([0-9]+(?:[.,][0-9]+)?)/);
-            if (!m) return;
-            const v = parseFloat(m[1].replace(',', '.')) || 0;
-
-            if (c.classList.contains('highlight-natural')) kg.nat += v;
-            else if (c.classList.contains('highlight-ziołowy')) kg.zio += v;
-            else if (c.classList.contains('highlight-pomidorowy')) kg.pom += v;
-        });
-
-        const fmtKg = v => (Math.round(v * 10) / 10).toString().replace('.', ',') + ' kg';
-        const pctByCount = v => (totalCnt > 0 ? (v / totalCnt * 100) : 0);
-
-        const segNat = document.querySelector('.seg-naturalny');
-        const segZio = document.querySelector('.seg-ziolowy');
-        const segPom = document.querySelector('.seg-pomidorowy');
-        const segEmp = document.querySelector('.seg-empty');
-
-        if (segNat) segNat.style.width = pctByCount(cnt.nat) + '%';
-        if (segZio) segZio.style.width = pctByCount(cnt.zio) + '%';
-        if (segPom) segPom.style.width = pctByCount(cnt.pom) + '%';
-        if (segEmp) segEmp.style.width = pctByCount(cnt.emp) + '%';
-
-        const setLabel = (cls, count, kgsum, widthPct, id, showKg = true) => {
-            const lab = document.querySelector(cls);
-            const el = document.getElementById(id);
-            if (!lab || !el) return;
-            if (count > 0) {
-                lab.style.display = 'grid';
-                lab.style.width = widthPct + '%';
-                if (showKg) {
-                    el.innerHTML = `${count} <span class="kg">(${fmtKg(kgsum)})</span>`;
-                } else {
-                    el.textContent = `${count}`;
-                }
-            } else {
-                lab.style.display = 'none';
-                lab.style.width = '0%';
-            }
-        };
-
-        setLabel('.lab-naturalny', cnt.nat, kg.nat, pctByCount(cnt.nat), 'cnt-naturalny');
-        setLabel('.lab-ziolowy', cnt.zio, kg.zio, pctByCount(cnt.zio), 'cnt-ziolowy');
-        setLabel('.lab-pomidorowy', cnt.pom, kg.pom, pctByCount(cnt.pom), 'cnt-pomidorowy');
-        setLabel('.lab-empty', cnt.emp, kg.emp, pctByCount(cnt.emp), 'cnt-empty', false);
+        if (c.classList.contains('highlight-natural')) kg.nat += v;
+        else if (c.classList.contains('highlight-ziołowy')) kg.zio += v;
+        else if (c.classList.contains('highlight-pomidorowy')) kg.pom += v;
     });
 
-    // Modal potwierdzenia usuwania
-    (function () {
-        const backdrop = document.getElementById('confirm-modal-backdrop');
-        const msgEl = document.getElementById('confirm-message');
-        const cancelBtn = document.getElementById('cancel-delete-btn');
-        const confirmBtn = document.getElementById('confirm-delete-btn');
-        const postForm = document.getElementById('cart-delete-post');
+    const fmtKg = v => (Math.round(v * 10) / 10).toString().replace('.', ',') + ' kg';
+    const pctByCount = v => (totalCnt > 0 ? (v / totalCnt * 100) : 0);
 
-        let pendingDeleteUrl = null;
+    const segNat = document.querySelector('.seg-naturalny');
+    const segZio = document.querySelector('.seg-ziolowy');
+    const segPom = document.querySelector('.seg-pomidorowy');
+    const segEmp = document.querySelector('.seg-empty');
 
-        function openModal(message, deleteUrl) {
-            pendingDeleteUrl = deleteUrl;
-            msgEl.textContent = message;
-            backdrop.setAttribute('aria-hidden', 'false');
-            setTimeout(() => confirmBtn.focus(), 0);
-            document.addEventListener('keydown', escToClose);
+    if (segNat) segNat.style.width = pctByCount(cnt.nat) + '%';
+    if (segZio) segZio.style.width = pctByCount(cnt.zio) + '%';
+    if (segPom) segPom.style.width = pctByCount(cnt.pom) + '%';
+    if (segEmp) segEmp.style.width = pctByCount(cnt.emp) + '%';
+
+    const setLabel = (cls, count, kgsum, widthPct, id, showKg = true) => {
+        const lab = document.querySelector(cls);
+        const el = document.getElementById(id);
+        if (!lab || !el) return;
+        if (count > 0) {
+            lab.style.display = 'grid';
+            lab.style.width = widthPct + '%';
+            if (showKg) { el.innerHTML = `${count} <span class="kg">(${fmtKg(kgsum)})</span>`; }
+            else { el.textContent = `${count}`; }
+        } else {
+            lab.style.display = 'none';
+            lab.style.width = '0%';
         }
-        function closeModal() {
-            backdrop.setAttribute('aria-hidden', 'true');
-            pendingDeleteUrl = null;
-            document.removeEventListener('keydown', escToClose);
-        }
-        function escToClose(e) { if (e.key === 'Escape') closeModal(); }
+    };
 
-        backdrop.addEventListener('click', (e) => { if (e.target === backdrop) closeModal(); });
-        cancelBtn.addEventListener('click', closeModal);
+    setLabel('.lab-naturalny', cnt.nat, kg.nat, pctByCount(cnt.nat), 'cnt-naturalny');
+    setLabel('.lab-ziolowy', cnt.zio, kg.zio, pctByCount(cnt.zio), 'cnt-ziolowy');
+    setLabel('.lab-pomidorowy', cnt.pom, kg.pom, pctByCount(cnt.pom), 'cnt-pomidorowy');
+    setLabel('.lab-empty', cnt.emp, kg.emp, pctByCount(cnt.emp), 'cnt-empty', false);
+});
 
-        confirmBtn.addEventListener('click', () => {
-            if (!pendingDeleteUrl) return;
-            postForm.setAttribute('action', pendingDeleteUrl);
-            postForm.submit();
-        });
+// Modal potwierdzenia usuwania
+(function () {
+    const backdrop = document.getElementById('confirm-modal-backdrop');
+    const msgEl = document.getElementById('confirm-message');
+    const cancelBtn = document.getElementById('cancel-delete-btn');
+    const confirmBtn = document.getElementById('confirm-delete-btn');
+    const postForm = document.getElementById('cart-delete-post');
 
-        // przechwytujemy klik w istniejące X (button.cart-delete-btn)
-        document.addEventListener('click', (e) => {
-            const btn = e.target.closest('.cart-delete-btn');
-            if (!btn) return;
-            e.preventDefault(); // zero natychmiastowego submitu
-            const url = btn.getAttribute('data-delete-url');
-            const name = btn.getAttribute('data-cart-name') || 'ten wózek';
-            if (!url) return;
-            openModal(`Czy jesteś pewien, że chcesz usunąć ${name} wraz z jego historią?`, url);
-        });
-    })();
+    let pendingDeleteUrl = null;
+
+    function openModal(message, deleteUrl) {
+        pendingDeleteUrl = deleteUrl;
+        msgEl.textContent = message;
+        backdrop.setAttribute('aria-hidden', 'false');
+        setTimeout(() => confirmBtn.focus(), 0);
+        document.addEventListener('keydown', escToClose);
+    }
+    function closeModal() {
+        backdrop.setAttribute('aria-hidden', 'true');
+        pendingDeleteUrl = null;
+        document.removeEventListener('keydown', escToClose);
+    }
+    function escToClose(e) { if (e.key === 'Escape') closeModal(); }
+
+    backdrop.addEventListener('click', (e) => { if (e.target === backdrop) closeModal(); });
+    cancelBtn.addEventListener('click', closeModal);
+
+    confirmBtn.addEventListener('click', () => {
+        if (!pendingDeleteUrl) return;
+        postForm.setAttribute('action', pendingDeleteUrl);
+        postForm.submit();
+    });
+
+    document.addEventListener('click', (e) => {
+        const btn = e.target.closest('.cart-delete-btn');
+        if (!btn) return;
+        e.preventDefault();
+        const url = btn.getAttribute('data-delete-url');
+        const name = btn.getAttribute('data-cart-name') || 'ten wózek';
+        if (!url) return;
+        openModal(`Czy jesteś pewien, że chcesz usunąć ${name} wraz z jego historią?`, url);
+    });
+})();
 </script>
 
 {% endblock %}

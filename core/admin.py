@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import Cart, Load
+from .models import Cart, Load, TunnelDay, TunnelRow
 
 
 @admin.register(Cart)
@@ -39,3 +39,33 @@ class LoadAdmin(admin.ModelAdmin):
         "product_kind",
         "cart__number",
     )
+
+
+# ---------------- TUNEL ----------------
+
+class TunnelRowInline(admin.TabularInline):
+    model = TunnelRow
+    extra = 0
+    fields = (
+        "order_no",
+        "product_kind",
+        "product_code",
+        "bar_production_date",
+        "cooling_time_min",
+        "temp_tunnel",
+        "temp_inlet",
+        "temp_shell_out",
+        "temp_core_out",
+        "taken_carts_csv",
+        "sum_taken_kg",
+    )
+    readonly_fields = ("sum_taken_kg",)
+    ordering = ("order_no",)
+
+
+@admin.register(TunnelDay)
+class TunnelDayAdmin(admin.ModelAdmin):
+    list_display = ("date", "created_at", "updated_at")
+    date_hierarchy = "date"
+    ordering = ("-date",)
+    inlines = [TunnelRowInline]

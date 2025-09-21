@@ -7,13 +7,9 @@ from core.views import (
     take_to_production,
     delete_cart,
     edit_load,
-    magazynek_lookup,       # API: /api/magazynek/lookup/
-    magazynek_codes,        # API: /api/magazynek/codes/
-    api_magazynek_carts,    # API: /api/magazynek/carts/
-    api_magazynek_cart_info,  # API: /api/magazynek/cart_info/
-    api_cart_check,         # API: /api/magazynek/cart_check/
+    api_cart_check,  # API: /api/magazynek/cart_check/
 )
-from core.tunel import tunel_view  # widok tunelu
+from core import tunel  # widok + API Tunelu
 
 urlpatterns = [
     # Panel administracyjny
@@ -23,7 +19,7 @@ urlpatterns = [
     path("", home, name="home"),
 
     # Widok tunelu
-    path("tunel/", tunel_view, name="tunel"),
+    path("tunel/", tunel.tunel_view, name="tunel"),
 
     # Partie i wózki
     path("partia/nowa/", new_batch, name="new_batch"),
@@ -33,11 +29,14 @@ urlpatterns = [
     path("load/<int:load_id>/take/", take_to_production, name="take_to_production"),
     path("load/<int:pk>/edit/", edit_load, name="edit_load"),
 
-    # API — magazynek chłodniczy
-    path("api/magazynek/lookup/", magazynek_lookup, name="magazynek_lookup"),
-    path("api/magazynek/codes/", magazynek_codes, name="magazynek_codes"),
-    path("api/magazynek/carts/", api_magazynek_carts, name="api_magazynek_carts"),
-    path("api/magazynek/cart_info/", api_magazynek_cart_info,
+    # API — magazynek chłodniczy (Tunel)
+    path("api/magazynek/lookup/", tunel.magazynek_lookup, name="magazynek_lookup"),
+    path("api/magazynek/codes/", tunel.magazynek_codes, name="magazynek_codes"),
+    path("api/magazynek/carts/", tunel.api_magazynek_carts,
+         name="api_magazynek_carts"),
+    path("api/magazynek/cart_info/", tunel.api_magazynek_cart_info,
          name="api_magazynek_cart_info"),
+
+    # API — ogólne
     path("api/magazynek/cart_check/", api_cart_check, name="api_cart_check"),
 ]

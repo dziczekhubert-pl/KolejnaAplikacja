@@ -34,39 +34,39 @@
         font-weight: 400
     }
 
-    /* Szerokości */
+    /* ZMIANY SZEROKOŚCI KOLUMN */
     .col-kind {
-        width: 18ch;
-        max-width: 20ch
+        width: 16.5ch;
+        max-width: 16ch;
     }
 
     .col-code {
-        width: 9ch;
-        max-width: 9ch
+        width: 10ch;
+        max-width: 9ch;
     }
 
     .col-date {
-        width: 18ch;
-        max-width: 20ch
+        width: 15.5ch;
+        max-width: 14ch;
     }
 
     .col-time {
-        width: 10ch
+        width: 9ch;
     }
 
     .col-temp {
-        width: 11ch
+        width: 10ch;
     }
 
     .col-carts {
-        width: 44ch;
-        max-width: 48ch
+        width: 60ch;
+        max-width: 64ch;
     }
 
     .col-sum {
         width: 10ch;
         max-width: 12ch;
-        background: #f9fafb
+        background: #f9fafb;
     }
 
     .tunnel-table input[type="date"],
@@ -91,7 +91,6 @@
         font-variant-numeric: tabular-nums
     }
 
-    /* pierwsze 8 kolumn do góry */
     .tunnel-table tbody tr>td:nth-child(-n+8) {
         vertical-align: top;
         padding-top: 6px
@@ -196,7 +195,7 @@
         background: #f9fafb
     }
 
-    /* Siatka kafelków (chips) + picker jako "kafelek" (bez ramki) */
+    /* Siatka chipsów */
     .chips {
         display: grid;
         grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -205,7 +204,7 @@
         align-items: start
     }
 
-    /* >>> KOMPAKTOWE CHIPSY <<< */
+    /* kompaktowy wiersz chipu (miejsce na 3 ikony) */
     .chip-line {
         display: flex;
         align-items: center;
@@ -220,9 +219,13 @@
         font-weight: 400;
         font-size: 11px;
         position: relative;
-        /* ← OGONEK DLA IKON */
-        padding-right: 34px;
-        /* ← REZERWACJA MIEJSCA NA ✎ I × */
+        padding-right: 72px;
+    }
+
+    .chip-line.taken {
+        background: #eef2ff;
+        border-color: #c7d2fe;
+        opacity: .95;
     }
 
     .chip-line .text {
@@ -248,57 +251,69 @@
         text-overflow: ellipsis
     }
 
-    /* OGONEK: ikony po prawej, poza flow tekstu */
+    .chip-line .tank {
+        font-weight: 500;
+        color: #374151;
+        white-space: nowrap
+    }
+
     .chip-line .actions {
         position: absolute;
         right: 6px;
         top: 50%;
         transform: translateY(-50%);
         display: inline-flex;
-        gap: 6px;
+        gap: 4px;
+    }
+
+    .icon,
+    .icon-btn,
+    .icon-link {
+        width: 24px;
+        height: 24px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 14px;
+        line-height: 1;
+        border: none;
+        border-radius: 4px;
+        background: transparent;
+        color: inherit;
+        text-decoration: none;
+        cursor: pointer;
+        padding: 0;
+        transition: background .15s ease;
+    }
+
+    .icon:hover,
+    .icon-btn:hover,
+    .icon-link:hover {
+        background: rgba(0, 0, 0, .06);
     }
 
     .chip-line .rm {
-        margin-left: 0px;
-        border: none;
-        background: transparent;
-        cursor: pointer;
-        font-weight: 600;
-        font-size: 12px;
-        /* jak długopisik */
-        line-height: 1;
-        padding: 0;
         color: #6b7280;
-        flex: 0 0 auto;
+    }
+
+    .chip-line .edit {
+        color: #6b7280;
+    }
+
+    .chip-line .take {
+        color: #2563eb;
     }
 
     .chip-line .rm:hover {
         color: #ef4444;
     }
 
-    /* przycisk edycji (ołówek) */
-    .chip-line .edit {
-        margin-left: 2px;
-        border: none;
-        background: transparent;
-        cursor: pointer;
-        line-height: 1;
-        padding: 0;
-        flex: 0 0 auto;
-        text-decoration: none;
-        color: #6b7280;
-        font-size: 14px;
-    }
-
     .chip-line .edit:hover {
         color: #111827;
     }
 
-    /* tank */
-    .chip-line .tank {
-        font-weight: 500;
-        color: #374151;
-        white-space: nowrap
+    .chip-line .take:hover {
+        color: #1d4ed8;
     }
 
     /* Picker bez ramki */
@@ -325,7 +340,26 @@
         min-width: 0
     }
 
-    /* „X” pod selectem Rodzaj batona */
+    /* Ikona statusu „zdjęto” */
+    .chip-line .status {
+        width: 24px;
+        height: 24px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 14px;
+        line-height: 1;
+        border-radius: 4px;
+        user-select: none;
+        pointer-events: none;
+        color: #10b981;
+    }
+
+    .chip-line .status.dim {
+        opacity: .9;
+    }
+
+    /* „X” pod selectem Rodzaj batona – zostaje */
     .cell-kind {
         padding-top: 0;
         position: relative
@@ -373,8 +407,8 @@
 <form method="post" id="tunnel-form" novalidate>
     {% csrf_token %}
     <div class="toolbar">
-        <h1 class="toolbar-title">Stan tunelu chłodniczego</h1>
-        <div class="toolbar-inline"><span>z dnia</span>{{ form.production_date }}</div>
+        <h1 class="toolbar-title">Tunel chłodniczy</h1>
+        <div class="toolbar-inline"><span></span>{{ form.production_date }}</div>
     </div>
 
     <table class="tunnel-table" id="tunnel-table">
@@ -488,19 +522,69 @@
     </tr>
 </template>
 
+<!-- (A) Backend -> JS: zapisane wiersze dla wybranej daty -->
+<script>
+    // Backend zwraca m.in. "frozen": true dla wierszy historycznych.
+    window.__TUNNEL_ROWS = JSON.parse('{{ prefill_rows_json|default:"[]"|escapejs }}');
+</script>
+
+<!-- (B) Aktualizacja URL przy zmianie daty (+ przeładowanie) -->
+<script>
+    (function () {
+        const dateInput = document.getElementById('id_production_date');
+        if (!dateInput) return;
+        dateInput.addEventListener('change', (e) => {
+            const v = e.target.value; // "YYYY-MM-DD"
+            const url = new URL(window.location.href);
+            if (v) url.searchParams.set('date', v); else url.searchParams.delete('date');
+            window.location.href = url.toString();
+        });
+    })();
+</script>
+
 <script>
     (function () {
         const tbody = document.getElementById('tunnel-tbody');
         const addRowBtn = document.getElementById('btn_add_row');
         const baseKindSelect = document.getElementById('id_product_kind');
 
-        const controllers = []; const removedSumCell = new WeakMap(); const usedCartNos = new Set();
+        const controllers = [];
+        const removedSumCell = new WeakMap();
+        const usedCartNos = new Set();
 
-        const baseKindOptions = (() => { const arr = []; if (baseKindSelect) for (const opt of baseKindSelect.options) if (opt.value !== '') arr.push({ value: opt.value, text: opt.text }); return arr; })();
+        const baseKindOptions = (() => {
+            const arr = [];
+            if (baseKindSelect) {
+                for (const opt of baseKindSelect.options) {
+                    if (opt.value !== '') arr.push({ value: opt.value, text: opt.text });
+                }
+            }
+            return arr;
+        })();
+
         const fmtKg = n => (Math.round(n * 10) / 10).toFixed(1);
         const raf = window.requestAnimationFrame || (cb => setTimeout(cb, 16));
 
-        async function apiGet(url, signal) { const res = await fetch(url, { headers: { 'Accept': 'application/json' }, cache: 'no-store', signal }); return await res.json(); }
+        function getCSRF() {
+            const m = document.cookie.match(/csrftoken=([^;]+)/);
+            return m ? decodeURIComponent(m[1]) : '';
+        }
+
+        async function apiGet(url, signal) {
+            const res = await fetch(url, { headers: { 'Accept': 'application/json' }, cache: 'no-store', signal });
+            return await res.json();
+        }
+        async function apiPost(url, payload) {
+            const res = await fetch(url, {
+                method: 'POST',
+                headers: { 'Accept': 'application/json', 'Content-Type': 'application/json', 'X-CSRFToken': getCSRF() },
+                body: payload ? JSON.stringify(payload) : '{}'
+            });
+            let data = null; try { data = await res.json(); } catch (_) { }
+            if (!res.ok) { const msg = (data && (data.detail || data.error)) || `HTTP ${res.status}`; throw new Error(msg); }
+            return data || {};
+        }
+
         const urlCodes = kind => `/api/magazynek/codes/?kind=${encodeURIComponent(kind)}&t=${Date.now()}`;
         const urlLookup = (k, c) => `/api/magazynek/lookup/?kind=${encodeURIComponent(k)}&code=${encodeURIComponent(c)}&t=${Date.now()}`;
         const urlCarts = (k, c) => `/api/magazynek/carts/?kind=${encodeURIComponent(k)}&code=${encodeURIComponent(c)}&t=${Date.now()}`;
@@ -508,19 +592,25 @@
 
         function cloneKindOptions(target) {
             target.innerHTML = '';
-            const ph = new Option('-', '', true, true); ph.setAttribute('data-placeholder', '1'); target.appendChild(ph);
-            const src = baseKindSelect && baseKindSelect.options.length
+            const ph = new Option('-', '', true, true);
+            ph.setAttribute('data-placeholder', '1');
+            target.appendChild(ph);
+            const src = (baseKindSelect && baseKindSelect.options.length)
                 ? Array.from(baseKindSelect.options).filter(o => o.value !== '')
                 : baseKindOptions;
-            for (const item of src) { target.appendChild(new Option(item.text, item.value, false, false)); }
+            for (const item of src) target.appendChild(new Option(item.text, item.value, false, false));
             target.disabled = false;
         }
         function ctrlOfRow(tr) { return controllers.find(c => c.tr === tr); }
 
         function stripDiacritics(s) { return (s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, ''); }
         function canonicalKindFrom(val, label) {
-            const raw = (val || label || '').toString().trim(); const s = stripDiacritics(raw).toLowerCase();
-            if (s.startsWith('nat')) return 'NAT'; if (s.startsWith('zio')) return 'ZIO'; if (s.startsWith('pom')) return 'POM'; return '';
+            const raw = (val || label || '').toString().trim();
+            const s = stripDiacritics(raw).toLowerCase();
+            if (s.startsWith('nat')) return 'NAT';
+            if (s.startsWith('zio')) return 'ZIO';
+            if (s.startsWith('pom')) return 'POM';
+            return '';
         }
         function sortRowsByKind() {
             const rows = Array.from(tbody.querySelectorAll('tr.js-row'));
@@ -529,10 +619,12 @@
                 const va = ca?.getKindValue() || '', la = ca?.getKindLabel() || '';
                 const vb = cb?.getKindValue() || '', lb = cb?.getKindLabel() || '';
                 const ka = canonicalKindFrom(va, la), kb = canonicalKindFrom(vb, lb);
-                const order = { 'NAT': 0, 'ZIO': 1, 'POM': 2 }; const oa = (order[ka] ?? 99), ob = (order[kb] ?? 99);
+                const order = { NAT: 0, ZIO: 1, POM: 2 };
+                const oa = (order[ka] ?? 99), ob = (order[kb] ?? 99);
                 if (oa !== ob) return oa - ob;
                 const laN = stripDiacritics(la).toLowerCase(), lbN = stripDiacritics(lb).toLowerCase();
-                if (laN !== lbN) return laN.localeCompare(lbN, 'pl'); return 0;
+                if (laN !== lbN) return laN.localeCompare(lbN, 'pl');
+                return 0;
             });
             for (const r of rows) tbody.appendChild(r);
         }
@@ -549,13 +641,13 @@
             while (i < rows.length) {
                 const c0 = ctrlOfRow(rows[i]); const key0 = c0?.getGroupKey() || ''; let j = i + 1;
                 while (j < rows.length) { const ck = ctrlOfRow(rows[j]); if ((ck?.getGroupKey() || '') === key0) j++; else break; }
-                const groupLen = j - i; let groupSum = 0; for (let k = i; k < j; k++) { groupSum += (ctrlOfRow(rows[k])?.lastSum || 0); }
+                const groupLen = j - i; let groupSum = 0; for (let k = i; k < j; k++) groupSum += (ctrlOfRow(rows[k])?.lastSum || 0);
                 if (key0 && groupLen > 1) {
                     const firstCell = rows[i].querySelector('td.cell-sum');
                     if (firstCell) { firstCell.rowSpan = groupLen; const s = firstCell.querySelector('.js-sum'); if (s) s.textContent = fmtKg(groupSum); }
                     for (let k = i + 1; k < j; k++) { const cell = rows[k].querySelector('td.cell-sum'); if (cell) { removedSumCell.set(rows[k], cell); cell.remove(); } }
                 } else {
-                    const onlySpan = rows[i].querySelector('td.cell-sum .js-sum'); if (onlySpan) { onlySpan.textContent = fmtKg(ctrlOfRow(rows[i])?.lastSum || 0); }
+                    const onlySpan = rows[i].querySelector('td.cell-sum .js-sum'); if (onlySpan) onlySpan.textContent = fmtKg(ctrlOfRow(rows[i])?.lastSum || 0);
                 }
                 i = j;
             }
@@ -571,26 +663,14 @@
 
         let autoRowId = 1;
 
-        /* ---- helpery do ekstrakcji tanka ---- */
-        function normalizeTankValue(val) {
-            if (val == null) return null;
-            if (typeof val === 'string') {
-                const m = val.match(/(\d+)/);
-                if (m) return m[1];
-                return val.trim() || null;
-            }
-            return String(val);
-        }
+        function normalizeTankValue(val) { if (val == null) return null; if (typeof val === 'string') { const m = val.match(/(\d+)/); if (m) return m[1]; return val.trim() || null; } return String(val); }
         function deepFindTank(obj, depth = 0) {
             if (!obj || typeof obj !== 'object' || depth > 3) return null;
             for (const k of Object.keys(obj)) {
                 const v = obj[k];
                 if (/tank/i.test(k)) { const n = normalizeTankValue(v); if (n != null && n !== '') return n; }
                 if (v && typeof v === 'object') { const nested = deepFindTank(v, depth + 1); if (nested != null) return nested; }
-                if (typeof v === 'string') {
-                    const m = v.match(/\bT?\s*(\d+)\b/i);
-                    if (m && /tank|zbiornik|tanka?/i.test(k) || /tank|zbiornik/i.test(v)) return m[1];
-                }
+                if (typeof v === 'string') { const m = v.match(/\bT?\s*(\d+)\b/i); if ((m && /tank|zbiornik|tanka?/i.test(k)) || /tank|zbiornik/i.test(v)) return m[1]; }
             }
             return null;
         }
@@ -599,7 +679,8 @@
             const flatKeys = ['tank_no', 'tankNo', 'tank', 'tank_id', 'tankId', 'tank_number', 'tankNumber', 'tank_nr', 'tankNr'];
             for (const k of flatKeys) {
                 if (Object.prototype.hasOwnProperty.call(data, k)) {
-                    const n = normalizeTankValue(data[k]); if (n != null && n !== '') return n;
+                    const n = normalizeTankValue(data[k]);
+                    if (n != null && n !== '') return n;
                 }
             }
             for (const k of ['label', 'name', 'title', 'description', 'desc']) {
@@ -610,7 +691,6 @@
             }
             return deepFindTank(data, 0);
         }
-        /* ------------------------------------- */
 
         class RowController {
             constructor(tr) {
@@ -647,7 +727,12 @@
                 if (this.mode === 'client' && this.kindEl) { cloneKindOptions(this.kindEl); }
                 this.ensureCodeDisabledIfNoKind();
                 this.setCartControlsEnabled(false);
-                if (this.barDateEl) { this.barDateEl.readOnly = true; this.barDateEl.style.pointerEvents = 'none'; this.barDateEl.style.background = '#f9fafb'; this.barDateEl.style.color = '#6b7280'; }
+                if (this.barDateEl) {
+                    this.barDateEl.readOnly = true;
+                    this.barDateEl.style.pointerEvents = 'none';
+                    this.barDateEl.style.background = '#f9fafb';
+                    this.barDateEl.style.color = '#6b7280';
+                }
 
                 this.kindEl?.addEventListener('change', () => this.onKindChange());
                 if (this.codeEl) {
@@ -656,32 +741,51 @@
                     this.codeEl.addEventListener('change', deb);
                 }
                 this.addCartBtn?.addEventListener('click', () => this.onAddCart());
-                this.chipsWrap?.addEventListener('click', e => {
-                    const btn = e.target.closest('button.rm[data-no]'); if (!btn) return;
-                    const no = btn.getAttribute('data-no'); usedCartNos.delete(no);
-                    this.selected.delete(no); this.renderPicked(); refreshAllPickers();
+
+                this.chipsWrap?.addEventListener('click', async e => {
+                    const rmBtn = e.target.closest('button.rm[data-no]');
+                    if (rmBtn) {
+                        const no = rmBtn.getAttribute('data-no');
+                        usedCartNos.delete(no);
+                        this.selected.delete(no);
+                        this.renderPicked();
+                        await refreshAllPickers();
+                        return;
+                    }
+                    const takeBtn = e.target.closest('button.take[data-no]');
+                    if (takeBtn) {
+                        const no = takeBtn.getAttribute('data-no');
+                        await this.onTakeCart(no, takeBtn);
+                        return;
+                    }
                 });
+
                 this.delRowBtn?.addEventListener('click', () => this.onDeleteRow());
 
                 if (this.mode === 'server' && this.kindEl?.value) {
                     this.refreshCodesForKind().then(() => { if (this.codeEl?.value) this.lookupAndFill(); });
                 }
             }
+
             debounce(fn, ms) { let t; return (...a) => { clearTimeout(t); t = setTimeout(() => fn(...a), ms); }; }
             ensureCodeDisabledIfNoKind() { if (!this.kindEl || !this.codeEl) return; this.codeEl.disabled = !this.kindEl.value; }
             setCartControlsEnabled(en) { this.cartPickerEl && (this.cartPickerEl.disabled = !en); this.addCartBtn && (this.addCartBtn.disabled = !en); }
 
             getKindValue() { return (this.kindEl?.value || '').trim(); }
             getKindLabel() { return (this.kindEl?.selectedOptions?.[0]?.text || '').trim(); }
-            getGroupKey() { const canon = canonicalKindFrom(this.getKindValue(), this.getKindLabel()); return canon ? `canon:${canon}` : 'lbl:' + (this.getKindLabel() || this.getKindValue()); }
+            getGroupKey() {
+                const canon = canonicalKindFrom(this.getKindValue(), this.getKindLabel());
+                return canon ? `canon:${canon}` : 'lbl:' + (this.getKindLabel() || this.getKindValue());
+            }
 
             updateTotal() {
                 let sum = 0;
                 for (const v of this.selected.values()) {
-                    const w = (v && typeof v === 'object') ? v.kg : v;  // zgodność wsteczna
+                    const w = (v && typeof v === 'object') ? v.kg : v;
                     if (Number.isFinite(w)) sum += w;
                 }
-                this.lastSum = Math.round(sum * 10) / 10; if (this.sumEl) this.sumEl.textContent = fmtKg(this.lastSum);
+                this.lastSum = Math.round(sum * 10) / 10;
+                if (this.sumEl) this.sumEl.textContent = fmtKg(this.lastSum);
                 scheduleSortAndRebuild();
             }
 
@@ -694,16 +798,21 @@
                     const info = this.selected.get(no);
                     const kg = (info && typeof info === 'object') ? info.kg : info;
                     const tank = (info && typeof info === 'object') ? info.tank : null;
+                    const takeUrl = (info && typeof info === 'object') ? info.takeUrl : null;
+                    const editUrl = (info && typeof info === 'object') ? info.editUrl : null;
+                    const taken = !!(info && info.taken);
 
                     const label = Number.isFinite(kg) ? `${fmtKg(kg)} kg` : '… kg';
 
-                    const line = document.createElement('div'); line.className = 'chip-line';
+                    const line = document.createElement('div');
+                    line.className = 'chip-line';
+                    if (taken) line.classList.add('taken');
+
                     const text = document.createElement('div'); text.className = 'text';
 
                     const w = document.createElement('span'); w.className = 'w'; w.textContent = label;
                     const sep = document.createElement('span'); sep.className = 'sep'; sep.textContent = '|';
                     const c = document.createElement('span'); c.className = 'c'; c.textContent = `W${no}`;
-
                     text.append(w, sep, c);
 
                     if (tank != null && tank !== '') {
@@ -712,32 +821,49 @@
                         text.append(sep2, t);
                     }
 
-                    const rm = document.createElement('button'); rm.className = 'rm'; rm.type = 'button';
-                    rm.setAttribute('data-no', no); rm.textContent = '×';
+                    const rm = document.createElement('button');
+                    rm.className = 'rm icon'; rm.type = 'button'; rm.setAttribute('data-no', no);
+                    rm.title = 'Usuń wózek z zestawienia'; rm.setAttribute('aria-label', 'Usuń wózek z zestawienia'); rm.textContent = '🗑';
 
-                    // ✎ Edycja masy – jeżeli API zwróciło link
-                    let edit = null;
-                    if (info && typeof info === 'object' && info.editUrl) {
-                        edit = document.createElement('a');
-                        edit.className = 'edit';
-                        edit.href = info.editUrl;
-                        edit.title = 'Edytuj masę wózka';
-                        edit.setAttribute('aria-label', 'Edytuj masę wózka');
-                        edit.textContent = '✎';
+                    // „Zdejmij” tylko jeśli NIE jest zdjęty i mamy URL
+                    let take = null;
+                    const canTake = !!(takeUrl && !taken);
+                    if (canTake) {
+                        take = document.createElement('button');
+                        take.className = 'take icon'; take.type = 'button'; take.setAttribute('data-no', no);
+                        take.title = 'Zdejmij wózek ze stanu (pobrano do produkcji)';
+                        take.setAttribute('aria-label', 'Zdejmij wózek ze stanu');
+                        take.textContent = '⬇️';
                     }
 
-                    /* >>> OGONEK Z IKONAMI PO PRAWEJ <<< */
-                    const actions = document.createElement('div');
-                    actions.className = 'actions';
+                    // Ikona statusu „zdjęto”
+                    let statusIcon = null;
+                    if (taken) {
+                        statusIcon = document.createElement('span');
+                        statusIcon.className = 'status dim';
+                        statusIcon.title = 'Wózek zdjęto ze stanu';
+                        statusIcon.setAttribute('aria-label', 'Wózek zdjęto ze stanu');
+                        statusIcon.textContent = '✔️';
+                    }
+
+                    let edit = null;
+                    if (editUrl) {
+                        edit = document.createElement('a');
+                        edit.className = 'edit icon'; edit.href = editUrl; edit.title = 'Edytuj masę wózka';
+                        edit.setAttribute('aria-label', 'Edytuj masę wózka'); edit.textContent = '✎';
+                    }
+
+                    const actions = document.createElement('div'); actions.className = 'actions';
                     actions.append(rm);
+                    if (canTake && take) actions.append(take);
+                    if (statusIcon) actions.append(statusIcon);
                     if (edit) actions.append(edit);
 
                     line.append(text, actions);
                     this.chipsWrap.append(line);
                 }
 
-                // picker jako ostatni „kafelek”
-                if (this.pickerBox) { this.chipsWrap.append(this.pickerBox); }
+                if (this.pickerBox) this.chipsWrap.append(this.pickerBox);
 
                 if (this.takenEl) this.takenEl.value = arr.join(',');
                 this.updateTotal();
@@ -759,7 +885,7 @@
                 if (usedCartNos.has(no)) return;
                 usedCartNos.add(no);
                 if (!this.selected.has(no)) {
-                    this.selected.set(no, { kg: null, tank: null, loadId: null, editUrl: null });
+                    this.selected.set(no, { kg: null, tank: null, loadId: null, editUrl: null, takeUrl: null, taken: false });
                     this.renderPicked();
                     await this.attachCartWeight(no);
                 }
@@ -775,18 +901,24 @@
                 try {
                     const data = await apiGet(urlCodes(kind));
                     const opts = ['<option value="" data-placeholder="1" selected>-</option>'];
-                    if (Array.isArray(data.codes)) { for (const c of data.codes) { opts.push(`<option value="${String(c)}">${String(c)}</option>`); } }
-                    this.codeEl.innerHTML = opts.join(''); this.codeEl.disabled = false;
+                    if (Array.isArray(data.codes)) {
+                        for (const c of data.codes) opts.push(`<option value="${String(c)}">${String(c)}</option>`);
+                    }
+                    this.codeEl.innerHTML = opts.join('');
+                    this.codeEl.disabled = false;
                 } catch (e) {
                     console.warn('Nie udało się pobrać listy kodów:', e);
-                    this.codeEl.innerHTML = '<option value="" data-placeholder="1" selected>— błąd —</option>'; this.codeEl.disabled = true;
+                    this.codeEl.innerHTML = '<option value="" data-placeholder="1" selected>— błąd —</option>';
+                    this.codeEl.disabled = true;
                 }
             }
 
             async lookupAndFill() {
                 const kind = this.kindEl?.value, code = this.codeEl?.value;
                 if (!kind || !code) {
-                    this.codeEl?.setCustomValidity?.(''); if (this.barDateEl) this.barDateEl.value = ''; this.setCartControlsEnabled(false);
+                    this.codeEl?.setCustomValidity?.('');
+                    if (this.barDateEl) this.barDateEl.value = '';
+                    this.setCartControlsEnabled(false);
                     for (const no of this.selected.keys()) usedCartNos.delete(no);
                     this.selected.clear(); this.renderPicked(); await refreshAllPickers(); return;
                 }
@@ -805,14 +937,18 @@
                             else if (this.barDateEl.type === 'datetime-local') this.barDateEl.value = iso.slice(0, 16);
                             else this.barDateEl.value = iso;
                         } else if (this.barDateEl) { this.barDateEl.value = ''; }
-                        if (this.mode === 'client') { this.hCode && (this.hCode.value = code || ''); this.hBarDate && (this.hBarDate.value = this.barDateEl?.value || ''); }
+                        if (this.mode === 'client') {
+                            this.hCode && (this.hCode.value = code || '');
+                            this.hBarDate && (this.hBarDate.value = this.barDateEl?.value || '');
+                        }
                         await this.refreshCarts(kind, code);
                     }
                     this.codeEl?.reportValidity?.();
                     scheduleSortAndRebuild();
                 } catch (e) {
                     console.error('Lookup error:', e);
-                    this.codeEl?.setCustomValidity?.(''); this.setCartControlsEnabled(false);
+                    this.codeEl?.setCustomValidity?.('');
+                    this.setCartControlsEnabled(false);
                     for (const no of this.selected.keys()) usedCartNos.delete(no);
                     this.selected.clear(); this.renderPicked(); await refreshAllPickers();
                 }
@@ -825,8 +961,10 @@
                     this.cartPickerEl.innerHTML = `<option value="" data-placeholder="1" selected>${hasAny ? '-' : '— brak wózków —'}</option>`;
                     if (Array.isArray(data.carts)) {
                         for (const no of data.carts) {
-                            const str = String(no); if (usedCartNos.has(str)) continue;
-                            const opt = document.createElement('option'); opt.value = str; opt.textContent = str; this.cartPickerEl.appendChild(opt);
+                            const str = String(no);
+                            if (usedCartNos.has(str)) continue;
+                            const opt = document.createElement('option'); opt.value = str; opt.textContent = str;
+                            this.cartPickerEl.appendChild(opt);
                         }
                     }
                     this.setCartControlsEnabled(!!hasAny);
@@ -837,30 +975,76 @@
                 }
             }
 
+            /* >>>>>>> POPRAWKA: tank_no + is_taken z backendu <<<<<<< */
             async attachCartWeight(no) {
                 const kind = this.kindEl?.value, code = this.codeEl?.value; if (!kind || !code || !no) return;
                 try {
                     const data = await apiGet(urlCartInf(kind, code, no));
-                    let kg = null, tank = null, loadId = null, editUrl = null;
+                    let kg = null, tank = null, loadId = null, editUrl = null, takeUrl = null, takenNow = false;
+
                     if (data) {
                         if (data.total_weight_kg != null) {
                             const v = Number(data.total_weight_kg);
                             kg = Number.isFinite(v) ? Math.round(v * 10) / 10 : null;
                         }
-                        tank = extractTank(data);
+                        // preferuj bezpośrednio tank_no; jeśli puste, fallback do heurystyki:
+                        if (data.tank_no != null && data.tank_no !== '') {
+                            tank = String(data.tank_no);
+                        } else {
+                            tank = extractTank(data);
+                        }
                         loadId = data.load_id ?? null;
                         editUrl = data.edit_url ?? null;
+                        takeUrl = data.take_url ?? (loadId ? `/load/${loadId}/take/` : null);
+                        takenNow = !!data.is_taken;
                     }
+
                     if (this.selected.has(no)) {
-                        this.selected.set(no, { kg, tank, loadId, editUrl });
+                        const prev = this.selected.get(no) || {};
+                        this.selected.set(no, {
+                            kg,
+                            tank,
+                            loadId,
+                            editUrl,
+                            // jeśli już był "zamrożony" albo backend mówi, że zdjęty — nie pokazuj przycisku zdejmowania
+                            takeUrl: (prev.taken || takenNow) ? null : takeUrl,
+                            taken: prev.taken ? true : takenNow
+                        });
                         this.renderPicked();
                     }
                 } catch (e) {
                     if (this.selected.has(no)) {
-                        this.selected.set(no, { kg: null, tank: null, loadId: null, editUrl: null });
+                        const prev = this.selected.get(no) || {};
+                        this.selected.set(no, {
+                            kg: null, tank: null, loadId: null, editUrl: null,
+                            takeUrl: prev.taken ? null : null, taken: !!prev.taken
+                        });
                         this.renderPicked();
                     }
                     console.warn('Nie udało się pobrać masy/tanka dla wózka:', no, e);
+                }
+            }
+            /* >>>>>>> KONIEC POPRAWKI <<<<<<< */
+
+            async onTakeCart(no, btnEl) {
+                const info = this.selected.get(no); if (!info) return;
+                const takeUrl = info.takeUrl; if (!takeUrl) return;
+
+                const prevDisabled = btnEl.disabled; btnEl.disabled = true;
+                try {
+                    await apiPost(takeUrl, { cart_no: Number(no) });
+
+                    // NIE usuwamy z selected/usedCartNos – tylko oznaczamy i chowamy przycisk
+                    info.taken = true;
+                    info.takeUrl = null;
+
+                    this.selected.set(no, info);
+                    this.renderPicked();
+
+                } catch (e) {
+                    console.error('Błąd zdejmowania wózka:', e);
+                    alert(`Nie udało się zdjąć wózka W${no} ze stanu: ${e.message}`);
+                    btnEl.disabled = prevDisabled;
                 }
             }
 
@@ -871,11 +1055,9 @@
             }
         }
 
-        // wiersz serwerowy
         const firstRow = tbody.querySelector('tr.js-row[data-mode="server"]');
         const firstCtrl = new RowController(firstRow); controllers.push(firstCtrl);
 
-        // dodawanie nowych
         addRowBtn.addEventListener('click', () => {
             const tpl = document.getElementById('row-template');
             const frag = document.importNode(tpl.content, true);
@@ -885,7 +1067,69 @@
             scheduleSortAndRebuild();
         });
 
+        // -------------------------
+        // HYDRACJA Z ZAPISANYCH DANYCH (frozen -> taken)
+        // -------------------------
+        async function hydrateFromPrefill(prefill) {
+            if (!Array.isArray(prefill) || !prefill.length) return;
+
+            for (const row of prefill) {
+                addRowBtn.click();
+                const ctrl = controllers[controllers.length - 1];
+
+                if (ctrl.kindEl) {
+                    ctrl.kindEl.value = row.product_kind || '';
+                    await ctrl.onKindChange();
+                }
+
+                if (ctrl.codeEl && row.product_code != null) {
+                    ctrl.codeEl.value = String(row.product_code);
+                    await ctrl.lookupAndFill();
+                }
+
+                if (ctrl.barDateEl && row.bar_production_date) {
+                    ctrl.barDateEl.value = row.bar_production_date;
+                    if (ctrl.hBarDate) ctrl.hBarDate.value = row.bar_production_date;
+                }
+
+                const carts = Array.isArray(row.taken_carts) && row.taken_carts.length
+                    ? row.taken_carts.map(String)
+                    : (Array.isArray(row.carts) ? row.carts.map(x => String(x.no ?? x)) : []);
+
+                for (const no of carts) {
+                    const hasOption = ctrl.cartPickerEl?.querySelector(`option[value="${no}"]`);
+                    if (hasOption) {
+                        ctrl.cartPickerEl.value = no;
+                        await ctrl.onAddCart();
+                        // „zamroź” chip, jeśli wiersz jest historyczny
+                        const info = ctrl.selected.get(no);
+                        if (info) {
+                            info.taken = !!row.frozen;
+                            if (row.frozen) info.takeUrl = null;
+                            ctrl.selected.set(no, info);
+                            ctrl.renderPicked();
+                        }
+                    } else {
+                        usedCartNos.add(no);
+                        ctrl.selected.set(no, {
+                            kg: null, tank: null, loadId: null, editUrl: null,
+                            takeUrl: null,                   // brak zdejmowania przy hydracji
+                            taken: !!row.frozen              // KLUCZOWE
+                        });
+                    }
+                }
+                ctrl.renderPicked();
+                for (const no of carts) {
+                    await ctrl.attachCartWeight(no);
+                }
+            }
+
+            scheduleSortAndRebuild();
+        }
+
         // start
+        hydrateFromPrefill(window.__TUNNEL_ROWS);
+
         scheduleSortAndRebuild();
     })();
 </script>

@@ -36,7 +36,6 @@
     font-size: 14px;
   }
 
-  /* ✅ Styl spójny z kafelkami */
   .card-btn {
     display: inline-block;
     border: 1px solid #ddd;
@@ -78,9 +77,11 @@
       {{ form.edited_by }}
     </div>
 
+    <input type="hidden" name="next" value="{{ next_url }}">
+
     <div class="actions">
       <button type="submit" class="card-btn">Zapisz zmiany</button>
-      <a href="{% url 'home' %}" class="card-btn">Anuluj</a>
+      <a href="{{ next_url }}" class="card-btn">Anuluj</a>
     </div>
   </form>
 </div>

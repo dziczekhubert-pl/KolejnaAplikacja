@@ -65,7 +65,8 @@ class BatchRowForm(forms.Form):
         max_value=Decimal("500.0"),
         decimal_places=1,  # spójnie z modelem
         widget=forms.NumberInput(
-            attrs={"step": "0.5", "min": "0", "max": "500", "inputmode": "decimal"}
+            attrs={"step": "0.5", "min": "0",
+                   "max": "500", "inputmode": "decimal"}
         ),
     )
     tank = forms.CharField(label="Tank", max_length=50, required=False)
@@ -76,7 +77,8 @@ class BatchRowForm(forms.Form):
             return val
         rounded = round_to_half_kg(Decimal(val))
         if rounded > Decimal("500.0"):
-            raise forms.ValidationError("Masa wózka nie może przekraczać 500 kg.")
+            raise forms.ValidationError(
+                "Masa wózka nie może przekraczać 500 kg.")
         return rounded
 
 
@@ -84,14 +86,19 @@ class TunnelEntryForm(forms.Form):
     """
     Formularz jednego wiersza tabeli tunelu.
     choices przekazujemy dynamicznie w __init__.
+    UWAGA: Pola product_kind i product_code są celowo optional,
+    żeby pusty pierwszy wiersz nie blokował zapisu.
     """
     production_date = forms.DateField(
         label="Data produkcji",
         widget=forms.DateInput(attrs={"type": "date"}),
         initial=timezone.localdate,  # dzisiejsza data
     )
-    product_kind = forms.ChoiceField(label="Rodzaj batona", choices=())
-    product_code = forms.ChoiceField(label="Kod", choices=())
+
+    # ↓↓↓ KLUCZOWA ZMIANA: required=False
+    product_kind = forms.ChoiceField(
+        label="Rodzaj batona", choices=(), required=False)
+    product_code = forms.ChoiceField(label="Kod", choices=(), required=False)
 
     # NIEEDYTOWALNE w UI (readonly) — ale wysyła się w POST
     bar_production_date = forms.DateField(
@@ -145,16 +152,13 @@ class TunnelEntryForm(forms.Form):
         Jeśli w projekcie stan magazynku oznacza się inaczej, zmień filtr(y) poniżej.
         """
         qs = Load.objects.filter(product_kind=kind, product_code=code)
-
-        # typowe kryteria „na stanie magazynku”:
-        # - ładunek przypięty do wózka (cart__isnull=False)
-        # - nie został jeszcze zdjęty do produkcji (taken_to_production_at__isnull=True)
         try:
             qs = qs.filter(cart__isnull=False)
         except Exception:
             pass
+        # Jeżeli masz pole taken_at / taken_to_production_at -> tu można zawęzić:
         try:
-            qs = qs.filter(taken_to_production_at__isnull=True)
+            qs = qs.filter(taken_at__isnull=True)
         except Exception:
             pass
 
@@ -165,28 +169,22 @@ class TunnelEntryForm(forms.Form):
         kind = cleaned.get("product_kind")
         code = cleaned.get("product_code")
 
-        # ChoiceField zwykle daje string — spróbujmy rzutować
-        code_int = None
-        if code is not None:
-            try:
-                code_int = int(code)
-            except (TypeError, ValueError):
-                code_int = code  # jeśli choices trzymają stringi
-
-        latest = None
-        if kind and code_int is not None:
-            latest = self._get_latest_load_in_cold_store(kind, code_int)
-            if latest is None:
-                raise ValidationError(
-                    "Podany kod nie występuje na magazynku dla wybranego rodzaju batona."
-                )
-
-        # WYMUSZENIE: zawsze nadpisz datę z magazynku (ignorujemy to, co przyszło z POST)
-        if latest and getattr(latest, "packing_date", None):
-            cleaned["bar_production_date"] = latest.packing_date
-        else:
+        # Jeśli pierwszy wiersz jest pusty – nic nie wymuszamy, po prostu wyjdź.
+        if not kind or not code:
             cleaned["bar_production_date"] = None
+            return cleaned
 
+        # ChoiceField zwykle daje string — spróbujmy rzutować
+        code_cast = code
+        try:
+            code_cast = int(code)
+        except (TypeError, ValueError):
+            pass
+
+        latest = self._get_latest_load_in_cold_store(kind, code_cast)
+        # NIE rzucamy błędu, jeśli brak – UI i API pilnują listy kodów,
+        # a w backendzie zapis dnia i tak parsujemy ręcznie.
+        cleaned["bar_production_date"] = getattr(latest, "packing_date", None)
         return cleaned
 
 

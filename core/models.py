@@ -1,4 +1,7 @@
+from __future__ import annotations
+
 from decimal import Decimal
+from typing import Iterable, List, Dict, Any
 
 from django.core.exceptions import ValidationError
 from django.core.validators import MaxValueValidator, MinValueValidator
@@ -76,10 +79,10 @@ class LoadQuerySet(models.QuerySet):
     def taken(self):
         return self.filter(status=Load.Status.TAKEN_TO_PRODUCTION)
 
-    def active_for_cart(self, cart):
+    def active_for_cart(self, cart: Cart):
         return self.in_cold_room().filter(cart=cart)
 
-    def fifo_for_cart(self, cart):
+    def fifo_for_cart(self, cart: Cart):
         return self.active_for_cart(cart).order_by("created_at")
 
 
@@ -105,7 +108,7 @@ class Load(models.Model):
         "Zmiana", max_length=4, choices=Shift.choices, default=Shift.I
     )
     product_kind = models.CharField(
-        "Rodzaj batonu", max_length=20, choices=Kind.choices, default=Kind.NATURALNY
+        "Rodzaj batona", max_length=20, choices=Kind.choices, default=Kind.NATURALNY
     )
     product_code = models.PositiveSmallIntegerField(
         "Kod", validators=[MinValueValidator(1), MaxValueValidator(365)], default=1
@@ -136,8 +139,7 @@ class Load(models.Model):
             MinValueValidator(
                 Decimal("0.0"), message="Masa nie może być ujemna."),
             MaxValueValidator(
-                Decimal("500.0"), message="Masa wózka nie może przekraczać 500 kg."
-            ),
+                Decimal("500.0"), message="Masa wózka nie może przekraczać 500 kg."),
             validate_half_kg,
         ],
         help_text="Podaj masę w kilogramach w skokach co 0,5 kg (np. 123.0, 123.5).",
@@ -156,6 +158,22 @@ class Load(models.Model):
         null=True,
         blank=True,
         editable=False,
+    )
+
+    # --- NOWE: snapshot masy w chwili zdjęcia z magazynku ---
+    cart_weight_snapshot = models.DecimalField(
+        "Masa w momencie zdjęcia [kg]",
+        max_digits=4,
+        decimal_places=1,
+        validators=[
+            MinValueValidator(Decimal("0.0")),
+            MaxValueValidator(Decimal("500.0")),
+            validate_half_kg,
+        ],
+        null=True,
+        blank=True,
+        editable=False,
+        help_text="Wartość ustawiana automatycznie przy zdejmowaniu do produkcji.",
     )
 
     # Czas/status
@@ -238,6 +256,7 @@ class Load(models.Model):
             ).update(
                 status=Load.Status.TAKEN_TO_PRODUCTION,
                 taken_at=timezone.now(),
+                cart_weight_snapshot=F("total_weight_kg"),  # ⬅ snapshot masy
                 version=F("version") + 1,
                 updated_at=timezone.now(),
             )
@@ -248,3 +267,128 @@ class Load(models.Model):
 
         self.refresh_from_db()
         return self
+
+
+# ======================================================================
+#                 ZAPIS „TUNELU” — dzień + wiersze
+# ======================================================================
+
+class TunnelDay(models.Model):
+    """
+    Nagłówek zapisu tunelu dla jednego dnia produkcji.
+    Cały „stan prawdy” dla dnia jest nadpisywany przy zapisie z UI.
+    """
+    date = models.DateField(db_index=True, unique=True)
+    created_at = models.DateTimeField(auto_now_add=True, db_index=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["-date"]
+
+    def __str__(self):
+        return f"Tunel {self.date.isoformat()}"
+
+
+class TunnelRow(models.Model):
+    """
+    Pojedynczy wiersz tabeli „Tunel”.
+    Pola odpowiadają kolumnom w UI.
+    """
+    day = models.ForeignKey(
+        TunnelDay, on_delete=models.CASCADE, related_name="rows")
+
+    # Używamy takich samych wartości jak w Load.product_kind (etykiety tekstowe).
+    # DODANE: choices spójne z Load.Kind (opcjonalnie, ale rekomendowane).
+    product_kind = models.CharField(
+        max_length=20,
+        choices=Load.Kind.choices,   # można usunąć, jeśli nie chcesz choices
+    )
+
+    # Kod w Load jest liczbowy; tu trzymamy liczbowo.
+    # DODANE: miękki walidator 1..365 (spójność z Load).
+    product_code = models.PositiveIntegerField(
+        validators=[MinValueValidator(1), MaxValueValidator(365)]
+    )
+
+    bar_production_date = models.DateField(null=True, blank=True)
+
+    # DODANE: walidatory czasów/temperatur (opcjonalne – porządkują dane)
+    cooling_time_min = models.IntegerField(
+        null=True,
+        blank=True,
+        validators=[MinValueValidator(0), MaxValueValidator(600)],
+    )
+
+    # Temperatury (dokładność 0.1)
+    temp_tunnel = models.DecimalField(
+        max_digits=4, decimal_places=1, null=True, blank=True
+    )
+    temp_inlet = models.DecimalField(
+        max_digits=4, decimal_places=1, null=True, blank=True
+    )
+    temp_shell_out = models.DecimalField(
+        max_digits=4, decimal_places=1, null=True, blank=True
+    )
+    temp_core_out = models.DecimalField(
+        max_digits=4, decimal_places=1, null=True, blank=True
+    )
+
+    # Pobrane wózki (lista numerów) + suma w kg
+    taken_carts_csv = models.CharField(max_length=512, blank=True, default="")
+    sum_taken_kg = models.DecimalField(
+        max_digits=8, decimal_places=1, default=Decimal("0.0")
+    )
+
+    # Kolejność w ramach dnia (tak jak użytkownik dodawał wiersze)
+    order_no = models.PositiveIntegerField(default=0, db_index=True)
+
+    created_at = models.DateTimeField(auto_now_add=True, db_index=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["order_no", "id"]
+        indexes = [
+            models.Index(fields=["day", "order_no"]),
+            models.Index(fields=["product_kind"]),
+            models.Index(fields=["product_code"]),
+        ]
+
+    def __str__(self):
+        return f"{self.product_kind} {self.product_code} ({self.day.date})"
+
+    # -------------------------
+    #  HELPERY POD FRONTEND/JSON
+    # -------------------------
+    @property
+    def taken_carts_list(self) -> List[str]:
+        """
+        Zwraca listę numerów wózków z CSV (bez pustych wpisów).
+        """
+        if not self.taken_carts_csv:
+            return []
+        return [x.strip() for x in self.taken_carts_csv.split(",") if x.strip()]
+
+    def set_taken_carts(self, carts: Iterable[str | int]) -> None:
+        """
+        Ustawia CSV na podstawie listy/internowalnych numerów wózków.
+        """
+        self.taken_carts_csv = ",".join(str(c).strip()
+                                        for c in carts if str(c).strip())
+
+    def to_prefill_dict(self) -> Dict[str, Any]:
+        """
+        Minimalny payload pod frontend (resztę – kg/tank – JS dociąga
+        per wózek przez /api/magazynek/cart_info/).
+        """
+        return {
+            "product_kind": self.product_kind,
+            "product_code": self.product_code,
+            "bar_production_date": self.bar_production_date.isoformat() if self.bar_production_date else "",
+            "cooling_time_min": self.cooling_time_min,
+            "temp_tunnel": float(self.temp_tunnel) if self.temp_tunnel is not None else None,
+            "temp_inlet": float(self.temp_inlet) if self.temp_inlet is not None else None,
+            "temp_shell_out": float(self.temp_shell_out) if self.temp_shell_out is not None else None,
+            "temp_core_out": float(self.temp_core_out) if self.temp_core_out is not None else None,
+            # Frontend umie dociągnąć masę/tank po numerze wózka:
+            "carts": [{"no": no} for no in self.taken_carts_list],
+        }
