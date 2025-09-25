@@ -160,7 +160,7 @@ class Load(models.Model):
         editable=False,
     )
 
-    # --- NOWE: snapshot masy w chwili zdjęcia z magazynku ---
+    # Snapshot masy w chwili zdjęcia z magazynku
     cart_weight_snapshot = models.DecimalField(
         "Masa w momencie zdjęcia [kg]",
         max_digits=4,
@@ -180,8 +180,7 @@ class Load(models.Model):
     produced_at = models.DateTimeField(
         "Czas wyprodukowania", default=timezone.now)
     status = models.CharField(
-        max_length=32, choices=Status.choices, default=Status.IN_COLD_ROOM
-    )
+        max_length=32, choices=Status.choices, default=Status.IN_COLD_ROOM)
     taken_at = models.DateTimeField("Czas zdjęcia", null=True, blank=True)
 
     # Edycje masy
@@ -192,8 +191,7 @@ class Load(models.Model):
     created_at = models.DateTimeField(auto_now_add=True, db_index=True)
     updated_at = models.DateTimeField(auto_now=True)
     version = models.PositiveIntegerField(
-        default=0, help_text="Wewnętrzna wersja rekordu do CAS."
-    )
+        default=0, help_text="Wewnętrzna wersja rekordu do CAS.")
 
     # Manager/QuerySet
     objects = LoadQuerySet.as_manager()
@@ -207,6 +205,7 @@ class Load(models.Model):
             models.Index(fields=["status", "produced_at"]),
         ]
         constraints = [
+            # Unikalny aktywny ładunek na wózek
             models.UniqueConstraint(
                 fields=["cart"],
                 condition=Q(status="IN_COLD_ROOM"),
@@ -256,7 +255,7 @@ class Load(models.Model):
             ).update(
                 status=Load.Status.TAKEN_TO_PRODUCTION,
                 taken_at=timezone.now(),
-                cart_weight_snapshot=F("total_weight_kg"),  # ⬅ snapshot masy
+                cart_weight_snapshot=F("total_weight_kg"),  # snapshot masy
                 version=F("version") + 1,
                 updated_at=timezone.now(),
             )
@@ -298,46 +297,36 @@ class TunnelRow(models.Model):
         TunnelDay, on_delete=models.CASCADE, related_name="rows")
 
     # Używamy takich samych wartości jak w Load.product_kind (etykiety tekstowe).
-    # DODANE: choices spójne z Load.Kind (opcjonalnie, ale rekomendowane).
     product_kind = models.CharField(
         max_length=20,
-        choices=Load.Kind.choices,   # można usunąć, jeśli nie chcesz choices
+        choices=Load.Kind.choices,   # spójne z Load.Kind
     )
 
     # Kod w Load jest liczbowy; tu trzymamy liczbowo.
-    # DODANE: miękki walidator 1..365 (spójność z Load).
     product_code = models.PositiveIntegerField(
         validators=[MinValueValidator(1), MaxValueValidator(365)]
     )
 
     bar_production_date = models.DateField(null=True, blank=True)
 
-    # DODANE: walidatory czasów/temperatur (opcjonalne – porządkują dane)
+    # Czas/temperatury
     cooling_time_min = models.IntegerField(
-        null=True,
-        blank=True,
+        null=True, blank=True,
         validators=[MinValueValidator(0), MaxValueValidator(600)],
     )
-
-    # Temperatury (dokładność 0.1)
     temp_tunnel = models.DecimalField(
-        max_digits=4, decimal_places=1, null=True, blank=True
-    )
+        max_digits=4, decimal_places=1, null=True, blank=True)
     temp_inlet = models.DecimalField(
-        max_digits=4, decimal_places=1, null=True, blank=True
-    )
+        max_digits=4, decimal_places=1, null=True, blank=True)
     temp_shell_out = models.DecimalField(
-        max_digits=4, decimal_places=1, null=True, blank=True
-    )
+        max_digits=4, decimal_places=1, null=True, blank=True)
     temp_core_out = models.DecimalField(
-        max_digits=4, decimal_places=1, null=True, blank=True
-    )
+        max_digits=4, decimal_places=1, null=True, blank=True)
 
     # Pobrane wózki (lista numerów) + suma w kg
     taken_carts_csv = models.CharField(max_length=512, blank=True, default="")
     sum_taken_kg = models.DecimalField(
-        max_digits=8, decimal_places=1, default=Decimal("0.0")
-    )
+        max_digits=8, decimal_places=1, default=Decimal("0.0"))
 
     # Kolejność w ramach dnia (tak jak użytkownik dodawał wiersze)
     order_no = models.PositiveIntegerField(default=0, db_index=True)
@@ -392,3 +381,30 @@ class TunnelRow(models.Model):
             # Frontend umie dociągnąć masę/tank po numerze wózka:
             "carts": [{"no": no} for no in self.taken_carts_list],
         }
+
+
+# ======================================================================
+#      TRWAŁY PLAN PRODUKCJI – zapis w bazie (JSON + metadane)
+# ======================================================================
+
+class ProductionPlan(models.Model):
+    """
+    Trwały zapis planu produkcji (widok „Plan produkcji”).
+    Przechowujemy JSON: daty i sztuki per dzień/rodzaj.
+    Domyślnie używamy jednej globalnej instancji (slug='default').
+    """
+    slug = models.SlugField(max_length=32, unique=True, default="default")
+    days_count = models.PositiveSmallIntegerField(default=1)
+    # dates: { "1": "YYYY-MM-DD", ... }
+    dates = models.JSONField(default=dict)
+    # pcs: { "1": { "Naturalny": 0, "Ziołowy": 0, "Pomidorowy": 0 }, ... }
+    pcs = models.JSONField(default=dict)
+
+    updated_at = models.DateTimeField(auto_now=True)
+    updated_by = models.CharField(max_length=64, blank=True)
+
+    class Meta:
+        db_table = "production_plan"
+
+    def __str__(self):
+        return f"Plan ({self.slug}) — {self.updated_at:%Y-%m-%d %H:%M}"

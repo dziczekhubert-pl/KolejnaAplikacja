@@ -1,0 +1,324 @@
+{% extends "core/base.html" %}
+{% load tz %}
+{% load l10n %}
+
+{% block content %}
+
+<style>
+  /* Pasek zakładek */
+  .page-tabs {
+    display: flex;
+    gap: 10px;
+    justify-content: flex-end;
+    margin: 6px 0 6px;
+    flex-wrap: wrap
+  }
+
+  .tab {
+    display: inline-block;
+    padding: 8px 14px;
+    border-radius: 10px;
+    border: 1px solid #e5e7eb;
+    background: #fff;
+    color: #111827;
+    text-decoration: none;
+    font-weight: 600;
+    line-height: 1
+  }
+
+  .tab:hover {
+    background: #f9fafb
+  }
+
+  .tab-active {
+    outline: 2px solid #93c5fd;
+    box-shadow: inset 0 0 0 1px #e5e7eb
+  }
+</style>
+
+<div class="page-tabs">
+  <a href="{% url 'plan_produkcji' %}" class="tab">Prod. Batonów</a>
+  <a href="{% url 'home' %}" class="tab">Mag. Chłodniczy</a>
+  <a href="{% url 'tunel' %}" class="tab">Tunel</a>
+</div>
+
+<h2><strong>{{ title }}</strong></h2>
+
+<form method="post" novalidate autocomplete="off" id="plan-form">
+  {% csrf_token %}
+  <input type="hidden" name="days" id="id_days" value="{{ days_count|default:1 }}">
+
+  <style>
+    :root {
+      --border: #e5e7eb;
+      --bg: #fff;
+      --bg-soft: #f9fafb;
+      --text: #111827;
+      --muted: #6b7280;
+      --head: #e5e7eb;
+    }
+
+    .table-wrap {
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      overflow: auto;
+      background: #fff;
+      box-shadow: 0 1px 1px rgba(0, 0, 0, .02);
+    }
+
+    table.plan-table {
+      border-collapse: separate;
+      border-spacing: 0;
+      width: 100%;
+      font-size: 14px;
+      min-width: 720px;
+    }
+
+    .plan-table th,
+    .plan-table td {
+      padding: 8px 10px;
+      border: 1px solid var(--border);
+      text-align: center;
+      white-space: nowrap;
+      vertical-align: middle;
+    }
+
+    .plan-table thead th {
+      position: sticky;
+      top: 0;
+      background: var(--head);
+      font-weight: 700;
+      z-index: 1;
+    }
+
+    .plan-table th:first-child {
+      position: sticky;
+      left: 0;
+      background: var(--head);
+      border-right: 1px solid var(--border);
+      font-weight: 700;
+      z-index: 2;
+    }
+
+    .plan-table td:first-child {
+      position: sticky;
+      left: 0;
+      background: #fff;
+      border-right: 1px solid var(--border);
+      font-weight: 600;
+      z-index: 2;
+    }
+
+    .plan-table thead th.before-missing,
+    .plan-table tbody td.before-missing {
+      border-right: none !important;
+    }
+
+    .plan-table thead th.missing,
+    .plan-table tbody td.missing,
+    .plan-table tfoot td.missing {
+      border-left: none !important;
+    }
+
+    .date {
+      width: 18ch;
+      padding: 6px 8px;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      background: #fff;
+      text-align: center;
+    }
+
+    .pcs {
+      min-width: 12ch;
+      width: 12ch;
+      text-align: center;
+      padding: 6px 8px;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      background: #fff;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 4px 8px;
+      border-radius: 999px;
+      border: none;
+      background: transparent;
+      color: var(--text);
+      font-weight: 600;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .muted {
+      color: var(--muted);
+    }
+
+    .btn-inline {
+      padding: 8px 12px;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      background: #fff;
+      cursor: pointer;
+      margin-right: 8px;
+    }
+
+    /* Wyśrodkowanie komórki z przyciskami Dodaj/Usuń dzień */
+    .add-actions-cell {
+      padding: 10px 0;
+    }
+
+    .add-actions {
+      display: flex;
+      justify-content: center;
+      gap: 8px;
+      flex-wrap: wrap;
+      align-items: center;
+    }
+  </style>
+
+  <div class="table-wrap">
+    <table class="plan-table" id="plan-table">
+      <thead>
+        <tr>
+          <th>Data</th>
+          {% for k in KINDS %}
+          <th class="before-missing">{{ k }}<br><span class="muted">szt.</span></th>
+          <th class="missing">Brakuje<br><span class="muted">kg</span></th>
+          {% endfor %}
+        </tr>
+      </thead>
+
+      <tbody id="plan-tbody">
+        {% for row in rows %}
+        <tr data-idx="{{ row.idx }}">
+          <td><input class="date" type="date" name="date_{{ row.idx }}" value="{{ row.date|date:'Y-m-d' }}"></td>
+          {% for item in row.items %}
+          <td class="before-missing">
+            <input class="pcs" type="number" name="d{{ row.idx }}_{{ item.kind }}" value="{{ item.pcs|default:0 }}"
+              min="0" step="1" inputmode="numeric">
+          </td>
+          <td class="missing">
+            {% if item.missing_kg > 0 %}
+            <span class="chip">{{ item.missing_kg|floatformat:1|localize }} kg</span>
+            {% else %}
+            <span class="chip" title="Zbilansowane">✔</span>
+            {% endif %}
+          </td>
+          {% endfor %}
+        </tr>
+        {% endfor %}
+
+        <tr id="add-row-tr">
+          <td colspan="{{ add_row_colspan }}" class="add-actions-cell">
+            <div class="add-actions">
+              <button type="button" class="btn-inline" id="btn-add">+ Dodaj dzień</button>
+              <button type="button" class="btn-inline" id="btn-remove">− Usuń dzień</button>
+            </div>
+          </td>
+        </tr>
+      </tbody>
+
+      <tfoot>
+        <tr>
+          <td>Dostępne na magazynku (kg)</td>
+          {% for ak in available_kind_list %}
+          <td colspan="2"><span class="chip">{{ ak.kg|floatformat:1|localize }} kg</span></td>
+          {% endfor %}
+        </tr>
+        <tr>
+          <td><strong>Do wyprodukowania (kg)</strong></td>
+          {% for tm in to_make_kind_list %}
+          <td colspan="2"><span class="chip"><strong>{{ tm.kg|floatformat:1|localize }} kg</strong></span></td>
+          {% endfor %}
+        </tr>
+      </tfoot>
+    </table>
+  </div>
+
+  <div style="margin-top:12px;display:flex;gap:8px;">
+    <button type="submit" class="button primary">Zapisz / Przelicz</button>
+    <button type="button" class="button" id="btn-clear">Wyczyść</button>
+  </div>
+</form>
+
+<div id="kinds-holder" data-kinds='[
+  {% for k in KINDS %}"{{ k|escapejs }}"{% if not forloop.last %},{% endif %}{% endfor %}
+]' style="display:none"></div>
+
+<script>
+  (function () {
+    const MAX_DAYS = 7;
+    const tbody = document.getElementById('plan-tbody');
+    const addTr = document.getElementById('add-row-tr');
+    const btnAdd = document.getElementById('btn-add');
+    const btnRemove = document.getElementById('btn-remove');
+    const btnClear = document.getElementById('btn-clear');
+    const daysInp = document.getElementById('id_days');
+    const kinds = JSON.parse(document.getElementById('kinds-holder').getAttribute('data-kinds'));
+
+    function fmtISO(d) {
+      const y = d.getFullYear(), m = String(d.getMonth() + 1).padStart(2, '0'), dd = String(d.getDate()).padStart(2, '0');
+      return `${y}-${m}-${dd}`;
+    }
+    function dataRows() { return tbody.querySelectorAll('tr[data-idx]'); }
+    function getLastDate() {
+      const rows = dataRows(); if (!rows.length) return new Date();
+      const last = rows[rows.length - 1].querySelector('input.date')?.value;
+      if (!last) return new Date();
+      const [y, m, d] = last.split('-').map(Number); return new Date(y, m - 1, d);
+    }
+    function nextIndex() {
+      const rows = dataRows(); if (!rows.length) return 1;
+      const last = rows[rows.length - 1].getAttribute('data-idx'); return Number(last) + 1;
+    }
+
+    function addRow() {
+      const current = dataRows().length; if (current >= MAX_DAYS) return;
+      const idx = nextIndex(); const base = getLastDate(); base.setDate(base.getDate() + 1); const iso = fmtISO(base);
+      const tr = document.createElement('tr'); tr.setAttribute('data-idx', String(idx));
+      let html = `<td><input class="date" type="date" name="date_${idx}" value="${iso}"></td>`;
+      kinds.forEach(k => {
+        html += `
+          <td class="before-missing">
+            <input class="pcs" type="number" name="d${idx}_${k}" value="0" min="0" step="1" inputmode="numeric">
+          </td>
+          <td class="missing"><span class="chip" title="Zbilansowane">✔</span></td>`;
+      });
+      tr.innerHTML = html;
+      tbody.insertBefore(tr, addTr);
+      daysInp.value = String(current + 1);
+    }
+
+    function removeLastRow() {
+      const rows = dataRows(); if (rows.length <= 1) return;
+      rows[rows.length - 1].remove(); daysInp.value = String(rows.length - 1);
+    }
+
+    function clearAllRows() {
+      const rows = Array.from(dataRows());
+      const today = new Date();
+      rows.forEach((tr, i) => {
+        // daty od dzisiaj, sekwencyjnie
+        const d = new Date(today); d.setDate(today.getDate() + i);
+        const dateInp = tr.querySelector('input.date'); if (dateInp) dateInp.value = fmtISO(d);
+
+        // wyczyść sztuki (zmień "" na "0", jeśli ma wpisywać zera)
+        tr.querySelectorAll('input.pcs').forEach(inp => { inp.value = ""; });
+
+        // przywróć ✔ w „Brakuje kg”
+        tr.querySelectorAll('td.missing').forEach(cell => {
+          cell.innerHTML = '<span class="chip" title="Zbilansowane">✔</span>';
+        });
+      });
+    }
+
+    btnAdd?.addEventListener('click', addRow);
+    btnRemove?.addEventListener('click', removeLastRow);
+    btnClear?.addEventListener('click', clearAllRows);
+  })();
+</script>
+{% endblock %}

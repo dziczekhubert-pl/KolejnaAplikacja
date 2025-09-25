@@ -1,16 +1,17 @@
 from django.contrib import admin
-from .models import Cart, Load, TunnelDay, TunnelRow
+from .models import Cart, Load, TunnelDay, TunnelRow, ProductionPlan
 
 
 @admin.register(Cart)
 class CartAdmin(admin.ModelAdmin):
-    list_display = ("number", "capacity_kg", "is_free")
+    list_display = ("number", "capacity_kg", "is_free_flag")
     search_fields = ("number",)
+    ordering = ("number",)
 
-    def is_free(self, obj):
+    def is_free_flag(self, obj):
         return obj.is_free
-    is_free.boolean = True
-    is_free.short_description = "Wolny?"
+    is_free_flag.boolean = True
+    is_free_flag.short_description = "Wolny?"
 
 
 @admin.register(Load)
@@ -23,9 +24,11 @@ class LoadAdmin(admin.ModelAdmin):
         "cart",
         "pieces",
         "total_weight_kg",
+        "initial_weight_kg",
         "status",
         "produced_at",
         "taken_at",
+        "cart_weight_snapshot",
     )
     list_filter = (
         "status",
@@ -34,11 +37,11 @@ class LoadAdmin(admin.ModelAdmin):
         "packing_date",
         "cart",
     )
-    search_fields = (
-        "product_code",
-        "product_kind",
-        "cart__number",
-    )
+    search_fields = ("product_code", "product_kind", "cart__number")
+    list_select_related = ("cart",)
+    readonly_fields = ("initial_weight_kg", "edited_at", "cart_weight_snapshot")
+    date_hierarchy = "produced_at"
+    ordering = ("-produced_at",)
 
 
 # ---------------- TUNEL ----------------
@@ -69,3 +72,13 @@ class TunnelDayAdmin(admin.ModelAdmin):
     date_hierarchy = "date"
     ordering = ("-date",)
     inlines = [TunnelRowInline]
+
+
+# ---------------- PLAN PRODUKCJI (trwały) ----------------
+
+@admin.register(ProductionPlan)
+class ProductionPlanAdmin(admin.ModelAdmin):
+    list_display = ("slug", "days_count", "updated_at", "updated_by")
+    search_fields = ("slug", "updated_by")
+    readonly_fields = ("updated_at",)
+    ordering = ("slug",)

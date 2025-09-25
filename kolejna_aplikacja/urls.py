@@ -9,7 +9,8 @@ from core.views import (
     edit_load,
     api_cart_check,  # API: /api/magazynek/cart_check/
 )
-from core import tunel  # widok + API Tunelu
+from core import tunel       # widok + API Tunelu
+from core import plan_produkcji  # NOWY widok planu produkcji
 
 urlpatterns = [
     # Panel administracyjny
@@ -20,6 +21,9 @@ urlpatterns = [
 
     # Widok tunelu
     path("tunel/", tunel.tunel_view, name="tunel"),
+
+    # Nowa zakładka: plan produkcji
+    path("plan/", plan_produkcji.plan_produkcji, name="plan_produkcji"),
 
     # Partie i wózki
     path("partia/nowa/", new_batch, name="new_batch"),
