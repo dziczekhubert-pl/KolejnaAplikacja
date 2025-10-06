@@ -1,4 +1,3 @@
-# core/tunel.py
 from __future__ import annotations
 
 from urllib.parse import urlencode
@@ -357,13 +356,81 @@ def tunel_view(request):
     )
     codes_all_choices = [(str(c), str(c)) for c in codes_all_qs]
 
-    # >>> PREFILL: wczytaj zapisane wiersze dla initial_date
+    # >>> PREFILL: wczytaj zapisane wiersze dla initial_date (ZE SNAPSHOTEM PER WÓZEK)
     prefill_rows: List[Dict[str, Any]] = []
     day = TunnelDay.objects.filter(
         date=initial_date_obj).prefetch_related("rows").first()
+    is_frozen = initial_date_obj < timezone.localdate()
+
     if day:
         for r in day.rows.all().order_by("order_no", "id"):
             carts_list = [x for x in _split_carts_csv(r.taken_carts_csv)]
+
+            carts_enriched: List[Dict[str, Any]] = []
+            for no in carts_list:
+                cart_no = no  # string
+
+                # znajdź najnowszy ładunek dla (kind, code, cart)
+                last = (
+                    Load.objects
+                    .select_related("cart")
+                    .filter(product_kind=r.product_kind,
+                            product_code=r.product_code,
+                            cart__number=str(cart_no))
+                    .order_by("-id")
+                    .first()
+                )
+
+                kg_val = _weight_with_snapshot(last)
+                tank_val = _extract_tank_from_objects(
+                    last, last.cart if last else None)
+
+                if tank_val is None:
+                    # fallback: cokolwiek ostatniego dla tego wózka (dowolny kod) – byle odzyskać tank
+                    last_any_for_cart = (
+                        Load.objects
+                        .select_related("cart")
+                        .filter(cart__number=str(cart_no))
+                        .order_by("-id")
+                        .first()
+                    )
+                    if last_any_for_cart:
+                        tank_val = _extract_tank_from_objects(
+                            last_any_for_cart, last_any_for_cart.cart)
+
+                # status zdjęcia
+                is_taken_now = False
+                if last:
+                    if hasattr(last, "status") and getattr(Load, "Status", None):
+                        is_taken_now = (
+                            last.status == Load.Status.TAKEN_TO_PRODUCTION)
+                    elif hasattr(last, "taken_at"):
+                        is_taken_now = (last.taken_at is not None)
+
+                # linki (tylko jeśli NA MAGAZYNKU i dzień nie jest zamrożony)
+                edit_url = None
+                take_url = None
+                if last and not is_taken_now and not is_frozen:
+                    try:
+                        base = reverse("edit_load", args=[last.pk])
+                        qs = urlencode({"next": reverse("tunel")})
+                        edit_url = f"{base}?{qs}"
+                    except Exception:
+                        edit_url = None
+                    try:
+                        take_url = reverse("load_take", args=[last.pk])
+                    except Exception:
+                        take_url = None
+
+                carts_enriched.append({
+                    "no": str(cart_no),
+                    "kg": float(kg_val) if kg_val is not None else None,
+                    "tank": tank_val,
+                    "taken": bool(is_taken_now or is_frozen),
+                    "edit_url": edit_url,
+                    "take_url": take_url if not (is_frozen or is_taken_now) else None,
+                })
+
             prefill_rows.append({
                 "product_kind": r.product_kind,
                 "product_code": str(r.product_code),
@@ -373,12 +440,12 @@ def tunel_view(request):
                 "temp_inlet": float(r.temp_inlet) if r.temp_inlet is not None else None,
                 "temp_shell_out": float(r.temp_shell_out) if r.temp_shell_out is not None else None,
                 "temp_core_out": float(r.temp_core_out) if r.temp_core_out is not None else None,
-                # dwa aliasy na wózki – frontend toleruje oba:
+                # aliasy zgodne z frontendem:
                 "taken_carts": carts_list,                 # np. ["12","34"]
-                # np. [{"no":"12"},{"no":"34"}]
-                "carts": [{"no": no} for no in carts_list],
+                # np. [{"no":"12","kg":...,"tank":...}, ...]
+                "carts": carts_enriched,
                 "sum_taken_kg": float(r.sum_taken_kg or 0),
-
+                "frozen": is_frozen,
             })
 
     return render(request, "core/tunel.html", {
@@ -489,7 +556,6 @@ def api_magazynek_carts(request):
     return JsonResponse({"carts": list(carts_qs)})
 
 
-@require_GET
 @require_GET
 def api_magazynek_cart_info(request):
     """

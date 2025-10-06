@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from decimal import Decimal
+from decimal import Decimal, ROUND_HALF_UP
 from typing import Iterable, List, Dict, Any
 
 from django.core.exceptions import ValidationError
@@ -45,8 +45,20 @@ class EventLog(models.Model):
 
 class Cart(models.Model):
     number = models.CharField("Numer wózka", max_length=20, unique=True)
-    capacity_kg = models.DecimalField(
-        "Pojemność [kg]", max_digits=7, decimal_places=2, default=Decimal("430.00")
+
+    # Tara wózka (0–800 kg, skoki 0,5 kg)
+    tare_kg = models.DecimalField(
+        "Tara wózka [kg]",
+        max_digits=4,
+        decimal_places=1,
+        null=True,
+        blank=True,
+        validators=[
+            MinValueValidator(Decimal("0.0")),
+            MaxValueValidator(Decimal("800.0")),
+            validate_half_kg,
+        ],
+        help_text="Wpisz tarę wózka w kg, np. 100.0 lub 100.5.",
     )
 
     created_at = models.DateTimeField(auto_now_add=True, db_index=True)
@@ -69,6 +81,13 @@ class Cart(models.Model):
     @property
     def is_free(self):
         return self.active_load is None
+
+    # Helper pod API/autouzupełnianie
+    def to_info_dict(self) -> Dict[str, Any]:
+        return {
+            "number": self.number,
+            "tare_kg": float(self.tare_kg) if self.tare_kg is not None else None,
+        }
 
 
 # --- QuerySet ułatwiający typowe zapytania i filtracje ---
@@ -130,7 +149,7 @@ class Load(models.Model):
         validators=[MinValueValidator(1), MaxValueValidator(66)],
     )
 
-    # Masa aktualna
+    # Masa aktualna (pole przechowuje **NETTO**)
     total_weight_kg = models.DecimalField(
         "Masa [kg]",
         max_digits=4,
@@ -139,20 +158,20 @@ class Load(models.Model):
             MinValueValidator(
                 Decimal("0.0"), message="Masa nie może być ujemna."),
             MaxValueValidator(
-                Decimal("500.0"), message="Masa wózka nie może przekraczać 500 kg."),
+                Decimal("800.0"), message="Masa wózka nie może przekraczać 800 kg."),
             validate_half_kg,
         ],
-        help_text="Podaj masę w kilogramach w skokach co 0,5 kg (np. 123.0, 123.5).",
+        help_text="Pole przechowuje masę NETTO w kg (skoki co 0,5).",
     )
 
-    # Masa początkowa (ustalana automatycznie przy pierwszym zapisie)
+    # Masa początkowa (NETTO — ustawiana automatycznie przy pierwszym zapisie)
     initial_weight_kg = models.DecimalField(
         "Masa początkowa [kg]",
         max_digits=4,
         decimal_places=1,
         validators=[
             MinValueValidator(Decimal("0.0")),
-            MaxValueValidator(Decimal("500.0")),
+            MaxValueValidator(Decimal("800.0")),
             validate_half_kg,
         ],
         null=True,
@@ -160,14 +179,14 @@ class Load(models.Model):
         editable=False,
     )
 
-    # Snapshot masy w chwili zdjęcia z magazynku
+    # Snapshot masy w chwili zdjęcia z magazynku (NETTO)
     cart_weight_snapshot = models.DecimalField(
         "Masa w momencie zdjęcia [kg]",
         max_digits=4,
         decimal_places=1,
         validators=[
             MinValueValidator(Decimal("0.0")),
-            MaxValueValidator(Decimal("500.0")),
+            MaxValueValidator(Decimal("800.0")),
             validate_half_kg,
         ],
         null=True,
@@ -205,7 +224,6 @@ class Load(models.Model):
             models.Index(fields=["status", "produced_at"]),
         ]
         constraints = [
-            # Unikalny aktywny ładunek na wózek
             models.UniqueConstraint(
                 fields=["cart"],
                 condition=Q(status="IN_COLD_ROOM"),
@@ -228,13 +246,43 @@ class Load(models.Model):
     def is_active(self):
         return self.status == Load.Status.IN_COLD_ROOM
 
+    # --- Walidacja biznesowa (brutto ≥ tara, jeśli znamy tarę) ---
+    def clean(self):
+        super().clean()
+        if self.cart and self.cart.tare_kg is not None and self.total_weight_kg is not None:
+            # total_weight_kg w formularzu traktujemy jako BRUTTO (tu tylko walidacja)
+            brutto = Decimal(self.total_weight_kg)
+            if brutto < self.cart.tare_kg:
+                raise ValidationError(
+                    {"total_weight_kg": "Masa brutto nie może być mniejsza od tary wózka."}
+                )
+
+    def _quantize_01(self, value: Decimal) -> Decimal:
+        """Zaokrąglenie do 0,1 z ROUND_HALF_UP (żeby .05 -> .1)"""
+        return Decimal(value).quantize(Decimal("0.1"), rounding=ROUND_HALF_UP)
+
     def save(self, *args, **kwargs):
         """
-        Przy pierwszym zapisie ustal `initial_weight_kg` = `total_weight_kg`
-        (tylko jeśli dotąd było puste). Późniejsze edycje NIE zmieniają wartości początkowej.
+        Przed zapisem przeliczamy masę na NETTO:
+        netto = (podana w formularzu) BRUTTO – (tara wózka, jeśli znana).
+        Przy pierwszym zapisie `initial_weight_kg` ustawiamy na NETTO.
         """
-        if self.initial_weight_kg is None and self.total_weight_kg is not None:
+        # 1) policz netto
+        tare = self.cart.tare_kg or Decimal("0.0")
+        brutto = Decimal(self.total_weight_kg or 0)
+        netto = brutto - tare
+        if netto < 0:
+            netto = Decimal("0.0")
+
+        # zaokrąglij do 0,1
+        netto = self._quantize_01(netto)
+
+        self.total_weight_kg = netto
+
+        # 2) ustaw initial_weight_kg tylko raz (na NETTO)
+        if self.initial_weight_kg is None:
             self.initial_weight_kg = self.total_weight_kg
+
         super().save(*args, **kwargs)
 
     # ---------------------
@@ -245,6 +293,7 @@ class Load(models.Model):
         """
         Oznacz ładunek jako zdjęty do produkcji (CAS przez pole `version`).
         Metoda idempotentna — jeśli już zdjęty, zwraca self.
+        Snapshot masy jest NETTO.
         """
         if self.status == Load.Status.TAKEN_TO_PRODUCTION:
             return self
@@ -255,7 +304,7 @@ class Load(models.Model):
             ).update(
                 status=Load.Status.TAKEN_TO_PRODUCTION,
                 taken_at=timezone.now(),
-                cart_weight_snapshot=F("total_weight_kg"),  # snapshot masy
+                cart_weight_snapshot=F("total_weight_kg"),
                 version=F("version") + 1,
                 updated_at=timezone.now(),
             )

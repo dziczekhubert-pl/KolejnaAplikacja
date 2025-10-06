@@ -58,17 +58,41 @@ class BatchCommonForm(forms.Form):
 
 
 class BatchRowForm(forms.Form):
-    cart_number = forms.CharField(label="Numer wózka", max_length=20)
+    cart_number = forms.CharField(
+        label="Numer wózka",
+        max_length=20,
+        widget=forms.TextInput(attrs={
+            # hooki pod JS autouzupelniania tary po numerze
+            "autocomplete": "off",
+            "data-autofill": "cart-tare",  # np. nasłuch w JS
+        })
+    )
+
     total_weight_kg = forms.DecimalField(
         label="Masa [kg]",
         min_value=Decimal("0.0"),
-        max_value=Decimal("500.0"),
+        max_value=Decimal("800.0"),
         decimal_places=1,  # spójnie z modelem
         widget=forms.NumberInput(
             attrs={"step": "0.5", "min": "0",
-                   "max": "500", "inputmode": "decimal"}
+                   "max": "800", "inputmode": "decimal"}
         ),
     )
+
+    # NOWE: Tara wózka (opcjonalna), będzie podpowiadana po wpisaniu numeru wózka
+    tare_kg = forms.DecimalField(
+        label="Tara [kg]",
+        required=False,
+        min_value=Decimal("0.0"),
+        max_value=Decimal("800.0"),
+        decimal_places=1,
+        widget=forms.NumberInput(
+            attrs={"step": "0.5", "min": "0",
+                   "max": "800", "inputmode": "decimal"}
+        ),
+        help_text="Jeśli podasz, zapisze się na wózku (co 0,5 kg).",
+    )
+
     tank = forms.CharField(label="Tank", max_length=50, required=False)
 
     def clean_total_weight_kg(self):
@@ -76,9 +100,18 @@ class BatchRowForm(forms.Form):
         if val is None:
             return val
         rounded = round_to_half_kg(Decimal(val))
-        if rounded > Decimal("500.0"):
+        if rounded > Decimal("800.0"):
             raise forms.ValidationError(
-                "Masa wózka nie może przekraczać 500 kg.")
+                "Masa wózka nie może przekraczać 800 kg.")
+        return rounded
+
+    def clean_tare_kg(self):
+        val = self.cleaned_data.get("tare_kg")
+        if val in (None, ""):
+            return None
+        rounded = round_to_half_kg(Decimal(val))
+        if rounded < Decimal("0.0") or rounded > Decimal("800.0"):
+            raise forms.ValidationError("Tara musi być w zakresie 0–800 kg.")
         return rounded
 
 

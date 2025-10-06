@@ -90,7 +90,6 @@ def home(request):
             kind_display = (load.product_kind or "").strip()
         return ORDER_MAP.get(kind_display, 3)
 
-    # rzutuj numer na str, aby uniknąć porównań int vs str
     carts = sorted(
         carts_qs,
         key=lambda c: (rank_for_cart(c), str(c.number or "")),
@@ -109,6 +108,8 @@ def new_batch(request):
     Tworzenie partii: wiele wierszy (formset). Szanuje flagę POST
     `create_cart_if_missing`, aby utworzyć wózek, jeśli nie istnieje.
     Wózki zajęte są pomijane.
+
+    DODANE: jeżeli w wierszu podano `tare_kg`, zapisujemy ją na wózku (Cart.tare_kg).
     """
     if request.method == "POST":
         common = BatchCommonForm(request.POST)
@@ -125,6 +126,7 @@ def new_batch(request):
                     cart_number = row.cleaned_data["cart_number"]
                     weight = row.cleaned_data["total_weight_kg"]
                     tank = row.cleaned_data.get("tank")
+                    tare_kg = row.cleaned_data.get("tare_kg")  # <— NOWE
 
                     cart = Cart.objects.filter(number=cart_number).first()
                     if not cart:
@@ -134,6 +136,16 @@ def new_batch(request):
                             skipped_missing.append(str(cart_number))
                             continue
 
+                    # Jeśli podano tarę – zapisz/uzupełnij na wózku
+                    if tare_kg is not None:
+                        cart.tare_kg = tare_kg
+                        # updated_at o ile istnieje – zaktualizuje się automatycznie
+                        try:
+                            cart.save(update_fields=["tare_kg", "updated_at"])
+                        except Exception:
+                            cart.save(update_fields=["tare_kg"])
+
+                    # Nie twórz nowego ładunku, jeśli na wózku jest aktywny
                     has_active = Load.objects.filter(
                         Q(cart=cart) & _available_q()).exists()
                     if has_active:
@@ -201,8 +213,6 @@ def take_to_production(request, load_id):
         if load.status == Load.Status.TAKEN_TO_PRODUCTION:
             messages.info(request, "Ten załadunek został już zdjęty.")
         else:
-            # mark_taken() w modelu atomowo ustawia: status, taken_at,
-            # oraz cart_weight_snapshot = total_weight_kg.
             load.mark_taken()
             messages.success(
                 request, "Załadunek zdjęty do produkcji. Wózek wrócił jako pusty.")
@@ -234,7 +244,7 @@ def delete_cart(request, cart_id):
 class EditLoadForm(forms.ModelForm):
     """
     Minimalny formularz do edycji masy + kto dokonał zmiany.
-    Walidacja połówki kg jest w modelu (validate_half_kg).
+    Walidacja połówki kg zakładana w modelu (validate_half_kg).
     """
     edited_by = forms.CharField(
         label="Edytował",
@@ -246,7 +256,7 @@ class EditLoadForm(forms.ModelForm):
         model = Load
         fields = ["total_weight_kg"]
         widgets = {
-            "total_weight_kg": forms.NumberInput(attrs={"step": "0.5", "min": "0.0", "max": "500.0"})
+            "total_weight_kg": forms.NumberInput(attrs={"step": "0.5", "min": "0.0", "max": "800.0"})
         }
 
 
@@ -265,7 +275,6 @@ def edit_load(request, pk):
         except Exception:
             initial["edited_by"] = str(request.user)
 
-    # dokąd wracać
     next_url = _safe_next(request, fallback_name="home")
 
     if request.method == "POST":
@@ -298,19 +307,63 @@ def edit_load(request, pk):
 # ------------------------------- API -------------------------------
 
 @require_GET
+def cart_info(request):
+    """
+    Zwraca dane wózka po numerze – używane przez edycję masy do automatycznego
+    wczytania tary.
+    GET: /api/cart-info/?number=44
+    Odp:
+      {
+        "exists": bool,
+        "tare_kg": 23.5 | null,
+        "capacity_kg": 430.0 | null,
+        "is_free": bool
+      }
+    """
+    number = (request.GET.get("number") or "").strip()
+    if not number:
+        return JsonResponse({"exists": False})
+
+    try:
+        cart = Cart.objects.get(number=number)
+    except Cart.DoesNotExist:
+        return JsonResponse({"exists": False})
+
+    return JsonResponse({
+        "exists": True,
+        "tare_kg": float(cart.tare_kg) if cart.tare_kg is not None else None,
+        "capacity_kg": float(cart.capacity_kg) if cart.capacity_kg is not None else None,
+        "is_free": bool(getattr(cart, "is_free", True)),
+    })
+
+
+@require_GET
 def api_cart_check(request):
     """
-    Sprawdza czy wózek istnieje i czy jest zajęty aktywnym ładunkiem.
+    (Legacy) Sprawdza czy wózek istnieje i czy jest zajęty aktywnym ładunkiem.
     GET: /api/magazynek/cart_check/?number=42
-    Odp: { "exists": bool, "occupied": bool, "label": "Wózek 42" }
+    Odp:
+      {
+        "exists": bool,
+        "occupied": bool,
+        "label": "Wózek 42",
+        "tare_kg": 23.5 | null
+      }
     """
     number_raw = (request.GET.get("number") or "").strip()
     if not number_raw:
-        return JsonResponse({"exists": False, "occupied": False, "label": ""})
+        return JsonResponse({"exists": False, "occupied": False, "label": "", "tare_kg": None})
 
     cart = Cart.objects.filter(number=number_raw).first()
     if not cart:
-        return JsonResponse({"exists": False, "occupied": False, "label": f"Wózek {number_raw}"})
+        return JsonResponse({"exists": False, "occupied": False, "label": f"Wózek {number_raw}", "tare_kg": None})
 
     occupied = Load.objects.filter(cart=cart).filter(_available_q()).exists()
-    return JsonResponse({"exists": True, "occupied": occupied, "label": f"Wózek {cart.number}"})
+    tare_val = float(cart.tare_kg) if cart.tare_kg is not None else None
+
+    return JsonResponse({
+        "exists": True,
+        "occupied": occupied,
+        "label": f"Wózek {cart.number}",
+        "tare_kg": tare_val,
+    })

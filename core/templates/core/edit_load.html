@@ -9,31 +9,74 @@
     border: 1px solid #ddd;
     border-radius: 10px;
     padding: 16px 20px;
-    max-width: 500px;
+    max-width: 540px;
     margin: 20px auto;
     box-shadow: 0 1px 3px rgba(0, 0, 0, .08);
   }
 
   .form-card h2 {
-    margin-top: 0;
+    margin: 0 0 10px;
     font-size: 18px;
-    font-weight: bold;
+    font-weight: 700
+  }
+
+  .form-row {
+    display: grid;
+    grid-template-columns: 1fr 140px;
+    gap: 10px;
+    align-items: center;
+    margin: 10px 0
   }
 
   .form-card label {
-    font-weight: 600;
-    display: block;
-    margin: 8px 0 4px 0;
+    font-weight: 600
   }
 
   .form-card input,
-  .form-card select,
-  .form-card textarea {
+  .form-card select {
     width: 100%;
     border: 1px solid #ddd;
     border-radius: 6px;
     padding: 6px 8px;
-    font-size: 14px;
+    font-size: 14px
+  }
+
+  .hint {
+    font-size: 12px;
+    color: #6b7280;
+    margin-top: 2px
+  }
+
+  .readonly {
+    background: #f9fafb
+  }
+
+  .error-box {
+    display: none;
+    margin-top: 8px;
+    border: 1px solid #fecaca;
+    background: #fff1f2;
+    color: #7f1d1d;
+    padding: 8px 10px;
+    border-radius: 8px;
+    font-size: 13px
+  }
+
+  .ok-box {
+    display: none;
+    margin-top: 8px;
+    border: 1px solid #bbf7d0;
+    background: #ecfdf5;
+    color: #065f46;
+    padding: 8px 10px;
+    border-radius: 8px;
+    font-size: 13px
+  }
+
+  .actions {
+    display: flex;
+    gap: 8px;
+    margin-top: 14px
   }
 
   .card-btn {
@@ -47,43 +90,223 @@
     line-height: 1.3;
     color: #333;
     text-decoration: none;
-    transition: background .15s ease, box-shadow .15s ease;
+    transition: background .15s, box-shadow .15s
   }
 
   .card-btn:hover {
-    background: #f2f2f2;
+    background: #f2f2f2
   }
 
-  .actions {
-    display: flex;
-    gap: 8px;
-    margin-top: 12px;
+  .card-btn[disabled] {
+    opacity: .6;
+    cursor: not-allowed
   }
 </style>
 
 <div class="form-card">
   <h2>Edycja masy – Wózek {{ load.cart.number }}</h2>
 
-  <form method="post">
+  <form method="post" id="edit-weight-form" novalidate>
     {% csrf_token %}
 
-    <div class="form-group">
-      <label for="{{ form.total_weight_kg.id_for_label }}">Masa [kg]:</label>
-      {{ form.total_weight_kg }}
+    <!-- BRUTTO -->
+    <div class="form-row">
+      <label for="id_gross_kg">Masa brutto [kg]:</label>
+      <input type="number" step="0.5" min="0" max="800" id="id_gross_kg" name="gross_kg" inputmode="decimal">
+    </div>
+    <div class="hint">Wpisz wagę całego ładunku razem z wózkiem.</div>
+
+    <!-- TARA (edytowalna) -->
+    <div class="form-row">
+      <label for="{% if form.tare_kg %}{{ form.tare_kg.id_for_label }}{% else %}id_tare_kg{% endif %}">Tara wózka
+        [kg]:</label>
+      {% if form.tare_kg %}
+      {{ form.tare_kg }}
+      {% else %}
+      <input type="number" step="0.5" min="0" max="800" id="id_tare_kg" name="tare_kg" inputmode="decimal"
+        value="{{ load.cart.tare_kg }}">
+      {% endif %}
+    </div>
+    <div class="hint">Możesz skorygować tarę (musi być wielokrotnością 0,5 kg).</div>
+
+    <!-- NETTO (wyliczane, readonly) -->
+    <div class="form-row">
+      <label for="id_netto_preview">Masa netto (do zapisu) [kg]:</label>
+      <input type="number" id="id_netto_preview" class="readonly" readonly>
     </div>
 
-    <div class="form-group">
+
+    <!-- UKRYTE: pole formularza Django -->
+    <input type="hidden" id="{{ form.total_weight_kg.id_for_label }}" name="{{ form.total_weight_kg.name }}"
+      value="{{ form.total_weight_kg.value|default_if_none:'' }}">
+
+    <!-- Kto edytował -->
+    <div class="form-row">
       <label for="{{ form.edited_by.id_for_label }}">Edytował:</label>
-      {{ form.edited_by }}
+      {% with f=form.edited_by %}
+      <input type="text" id="{{ f.id_for_label }}" name="{{ f.html_name }}" value="" placeholder="Imię i nazwisko"
+        autocomplete="off" inputmode="text">
+      {% endwith %}
     </div>
 
     <input type="hidden" name="next" value="{{ next_url }}">
 
+    <div class="error-box" id="id_errors"></div>
+    <div class="ok-box" id="id_okbox">Masa netto zostanie zapisana w polu <code>{{ form.total_weight_kg.name }}</code>.
+    </div>
+
     <div class="actions">
-      <button type="submit" class="card-btn">Zapisz zmiany</button>
+      <button type="submit" class="card-btn" id="id_submit">Zapisz zmiany</button>
       <a href="{{ next_url }}" class="card-btn">Anuluj</a>
     </div>
   </form>
 </div>
+
+<script>
+  (function () {
+    // ── uchwyty
+    const gross = document.getElementById('id_gross_kg');
+    const tare = document.getElementById('{% if form.tare_kg %}{{ form.tare_kg.id_for_label }}{% else %}id_tare_kg{% endif %}');
+    const nettoPreview = document.getElementById('id_netto_preview');
+    const hiddenNetto = document.getElementById('{{ form.total_weight_kg.id_for_label }}');
+    const errBox = document.getElementById('id_errors');
+    const okBox = document.getElementById('id_okbox');
+    const submitBtn = document.getElementById('id_submit');
+    const editedBy = document.getElementById('{{ form.edited_by.id_for_label }}');
+
+    const CART_NUMBER_CTX = '{{ load.cart.number }}';
+
+    // ── helpers
+    function parseNum(v) {
+      if (v === null || v === undefined) return NaN;
+      v = ('' + v).replace(',', '.').trim();
+      return v === '' ? NaN : Number(v);
+    }
+    function isHalfKg(num) {
+      return Number.isFinite(num) && Math.round(num * 2) === num * 2; // wielokrotność 0.5
+    }
+    function showError(msgs) {
+      if (!Array.isArray(msgs)) msgs = [msgs];
+      errBox.innerHTML = msgs.map(m => `<div>• ${m}</div>`).join('');
+      errBox.style.display = 'block';
+      okBox.style.display = 'none';
+      submitBtn.disabled = true;
+    }
+    function clearError() {
+      errBox.style.display = 'none';
+      errBox.innerHTML = '';
+      submitBtn.disabled = false;
+    }
+    function showOk() {
+      errBox.style.display = 'none';
+      okBox.style.display = 'block';
+      submitBtn.disabled = false;
+    }
+
+    // ── API: pobieranie tary z Carts (fallback na istniejące endpointy)
+    async function fetchCartInfo(number) {
+      if (!number) return null;
+      const urls = [
+        `/api/cart-info/?number=${encodeURIComponent(number)}`,
+        `/api/magazynek/cart_info/?number=${encodeURIComponent(number)}`,
+        `/api/magazynek/cart_check/?number=${encodeURIComponent(number)}`
+      ];
+      for (const u of urls) {
+        try {
+          const resp = await fetch(u, { headers: { 'Accept': 'application/json' }, cache: 'no-store' });
+          if (!resp.ok) continue;
+          const data = await resp.json();
+          const exists = (data.exists !== false);
+          const tare_kg = (typeof data.tare_kg === 'number') ? data.tare_kg : null;
+          return { exists, tare_kg };
+        } catch (e) { /* spróbuj kolejny URL */ }
+      }
+      return null;
+    }
+
+    async function refreshTareFromBackend(number, { overwriteAlways = true } = {}) {
+      const data = await fetchCartInfo(number);
+      if (!data) {
+        showError('Nie udało się pobrać tary wózka (połączenie/API).');
+        return;
+      }
+      if (!data.exists) {
+        showError(`Wózek ${number} nie istnieje.`);
+        return;
+      }
+      clearError();
+      if (typeof data.tare_kg === 'number' && !Number.isNaN(data.tare_kg)) {
+        if (overwriteAlways || !tare.value) {
+          tare.value = String(data.tare_kg);
+        }
+      }
+      recalc();
+    }
+
+    // ── logika netto + walidacja (w tym „Edytował”)
+    function recalc() {
+      const g = parseNum(gross.value);
+      const t = parseNum(tare.value);
+      const name = (editedBy.value || '').trim();
+      const problems = [];
+
+      if (!Number.isFinite(g)) problems.push('Podaj masę brutto.');
+      if (!Number.isFinite(t)) problems.push('Podaj tarę wózka.');
+      if (!name) problems.push('Podaj imię i nazwisko (pole „Edytował”).');
+
+      if (Number.isFinite(g) && (g < 0 || g > 800)) problems.push('Masa brutto musi być w zakresie 0–800 kg.');
+      if (Number.isFinite(t) && (t < 0 || t > 800)) problems.push('Tara musi być w zakresie 200–300 kg.');
+
+      if (Number.isFinite(g) && !isHalfKg(g)) problems.push('Masa brutto musi być wielokrotnością 0,5 kg.');
+      if (Number.isFinite(t) && !isHalfKg(t)) problems.push('Tara musi być wielokrotnością 0,5 kg.');
+
+      if (Number.isFinite(g) && Number.isFinite(t) && g < t) problems.push('Masa brutto nie może być mniejsza od tary.');
+
+      const n = (Number.isFinite(g) && Number.isFinite(t)) ? +(g - t).toFixed(1) : NaN;
+      if (Number.isFinite(n) && n < 0) problems.push('Masa netto nie może być ujemna.');
+      if (Number.isFinite(n) && !isHalfKg(n)) problems.push('Masa netto musi być wielokrotnością 0,5 kg.');
+
+      nettoPreview.value = Number.isFinite(n) ? n : '';
+
+      if (problems.length === 0 && Number.isFinite(n)) {
+        hiddenNetto.value = n;
+        showOk();
+      } else {
+        hiddenNetto.value = '';
+        showError(problems);
+      }
+    }
+
+    // ── init
+    document.addEventListener('DOMContentLoaded', async () => {
+      // 1) pobierz tarę z Carts dla numeru z kontekstu
+      if (CART_NUMBER_CTX) {
+        await refreshTareFromBackend(CART_NUMBER_CTX, { overwriteAlways: true });
+      }
+      // 2) jeśli netto było w hidden (np. retry), odtwórz brutto
+      const currentNet = parseNum(hiddenNetto.value);
+      const currentTare = parseNum(tare.value);
+      if (Number.isFinite(currentNet) && Number.isFinite(currentTare)) {
+        const backGross = +(currentNet + currentTare).toFixed(1);
+        if (!Number.isFinite(parseNum(gross.value))) gross.value = backGross;
+        nettoPreview.value = currentNet;
+      }
+      recalc();
+    });
+
+    // ── reakcje na zmiany
+    gross.addEventListener('input', recalc);
+    tare.addEventListener('input', recalc);
+    editedBy.addEventListener('input', recalc);
+
+    document.getElementById('edit-weight-form').addEventListener('submit', (e) => {
+      recalc();
+      if (hiddenNetto.value === '') {
+        e.preventDefault();
+        showError('Nie można zapisać — popraw pola powyżej.');
+      }
+    });
+  })();
+</script>
 
 {% endblock %}

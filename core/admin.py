@@ -4,7 +4,8 @@ from .models import Cart, Load, TunnelDay, TunnelRow, ProductionPlan
 
 @admin.register(Cart)
 class CartAdmin(admin.ModelAdmin):
-    list_display = ("number", "capacity_kg", "is_free_flag")
+    # było: ("number", "capacity_kg", "is_free_flag")
+    list_display = ("number", "tare_kg", "is_free_flag")
     search_fields = ("number",)
     ordering = ("number",)
 
@@ -22,7 +23,7 @@ class LoadAdmin(admin.ModelAdmin):
         "packing_date",
         "production_shift",
         "cart",
-        "pieces",
+        "handled_by",          # ← zamiast "pieces"
         "total_weight_kg",
         "initial_weight_kg",
         "status",
@@ -37,9 +38,15 @@ class LoadAdmin(admin.ModelAdmin):
         "packing_date",
         "cart",
     )
-    search_fields = ("product_code", "product_kind", "cart__number")
+    search_fields = ("product_code", "product_kind",
+                     "cart__number", "handled_by")  # ← dodano handled_by
     list_select_related = ("cart",)
-    readonly_fields = ("initial_weight_kg", "edited_at", "cart_weight_snapshot")
+    readonly_fields = (
+        "initial_weight_kg",
+        "edited_by",
+        "edited_at",
+        "cart_weight_snapshot",
+    )
     date_hierarchy = "produced_at"
     ordering = ("-produced_at",)
 

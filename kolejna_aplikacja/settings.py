@@ -108,12 +108,17 @@ DATABASE_URL = os.getenv("DATABASE_URL")
 
 if DATABASE_URL:
     DATABASES = {
-        "default": dj_database_url.parse(
-            DATABASE_URL,
-            conn_max_age=int(os.getenv("POSTGRES_CONN_MAX_AGE", "60")),
-            ssl_require=True,  # Render Postgres ma TLS – wymuś SSL w produkcji
-        )
+        "default": {
+            "ENGINE": "django.db.backends.postgresql",
+            "NAME": "plasterkownia",
+            "USER": "plaster_app",
+            "PASSWORD": "master753S",
+            "HOST": "localhost",
+            "PORT": "5432",
+            "CONN_MAX_AGE": 600,
+        }
     }
+
 else:
     # DEV fallback – pojedynczy plik
     DATABASES = {
@@ -135,7 +140,8 @@ USE_TZ = True
 # STATIC / MEDIA
 # --------------------------------------------------------------------------------------
 STATIC_URL = "static/"
-STATICFILES_DIRS = [BASE_DIR / "static"] if (BASE_DIR / "static").exists() else []
+STATICFILES_DIRS = [BASE_DIR /
+                    "static"] if (BASE_DIR / "static").exists() else []
 STATIC_ROOT = BASE_DIR / "staticfiles"
 
 # WhiteNoise – kompresja i hash nazw plików statycznych:
@@ -183,8 +189,10 @@ if not DEBUG:
     SECURE_CONTENT_TYPE_NOSNIFF = True
     SECURE_REFERRER_POLICY = "strict-origin-when-cross-origin"
 
-    SECURE_HSTS_SECONDS = int(os.getenv("DJANGO_SECURE_HSTS_SECONDS", "31536000"))
-    SECURE_HSTS_INCLUDE_SUBDOMAINS = os.getenv("DJANGO_SECURE_HSTS_INCLUDE_SUBDOMAINS", "1") == "1"
+    SECURE_HSTS_SECONDS = int(
+        os.getenv("DJANGO_SECURE_HSTS_SECONDS", "31536000"))
+    SECURE_HSTS_INCLUDE_SUBDOMAINS = os.getenv(
+        "DJANGO_SECURE_HSTS_INCLUDE_SUBDOMAINS", "1") == "1"
     SECURE_HSTS_PRELOAD = os.getenv("DJANGO_SECURE_HSTS_PRELOAD", "1") == "1"
     X_FRAME_OPTIONS = "DENY"
 

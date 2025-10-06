@@ -204,7 +204,6 @@
         align-items: start
     }
 
-    /* kompaktowy wiersz chipu (miejsce na 3 ikony) */
     .chip-line {
         display: flex;
         align-items: center;
@@ -316,7 +315,6 @@
         color: #1d4ed8;
     }
 
-    /* Picker bez ramki */
     .chip-line.picker {
         border: none;
         background: transparent;
@@ -340,7 +338,6 @@
         min-width: 0
     }
 
-    /* Ikona statusu „zdjęto” */
     .chip-line .status {
         width: 24px;
         height: 24px;
@@ -359,7 +356,6 @@
         opacity: .9;
     }
 
-    /* „X” pod selectem Rodzaj batona – zostaje */
     .cell-kind {
         padding-top: 0;
         position: relative
@@ -525,7 +521,6 @@
 
 <!-- (A) Backend -> JS: zapisane wiersze dla wybranej daty -->
 <script>
-    // Backend zwraca m.in. "frozen": true dla wierszy historycznych.
     window.__TUNNEL_ROWS = JSON.parse('{{ prefill_rows_json|default:"[]"|escapejs }}');
 </script>
 
@@ -535,7 +530,7 @@
         const dateInput = document.getElementById('id_production_date');
         if (!dateInput) return;
         dateInput.addEventListener('change', (e) => {
-            const v = e.target.value; // "YYYY-MM-DD"
+            const v = e.target.value;
             const url = new URL(window.location.href);
             if (v) url.searchParams.set('date', v); else url.searchParams.delete('date');
             window.location.href = url.toString();
@@ -543,6 +538,7 @@
     })();
 </script>
 
+<!-- (C) Logika tunelu z bezpiecznym autosave na „Dodaj” -->
 <script>
     (function () {
         const tbody = document.getElementById('tunnel-tbody');
@@ -552,6 +548,9 @@
         const controllers = [];
         const removedSumCell = new WeakMap();
         const usedCartNos = new Set();
+
+        // globalny przełącznik na czas hydracji
+        let AUTO_SAVE_ON_ADD = true;
 
         const baseKindOptions = (() => {
             const arr = [];
@@ -565,6 +564,11 @@
 
         const fmtKg = n => (Math.round(n * 10) / 10).toFixed(1);
         const raf = window.requestAnimationFrame || (cb => setTimeout(cb, 16));
+
+        function submitTunnelForm() {
+            const form = document.getElementById('tunnel-form');
+            if (form) setTimeout(() => form.submit(), 0);
+        }
 
         function getCSRF() {
             const m = document.cookie.match(/csrftoken=([^;]+)/);
@@ -741,7 +745,8 @@
                     this.codeEl.addEventListener('input', deb);
                     this.codeEl.addEventListener('change', deb);
                 }
-                this.addCartBtn?.addEventListener('click', () => this.onAddCart());
+                // klik użytkownika => autosave domyślnie ON
+                this.addCartBtn?.addEventListener('click', () => this.onAddCart({ autosave: true }));
 
                 this.chipsWrap?.addEventListener('click', async e => {
                     const rmBtn = e.target.closest('button.rm[data-no]');
@@ -826,7 +831,6 @@
                     rm.className = 'rm icon'; rm.type = 'button'; rm.setAttribute('data-no', no);
                     rm.title = 'Usuń wózek z zestawienia'; rm.setAttribute('aria-label', 'Usuń wózek z zestawienia'); rm.textContent = '🗑';
 
-                    // „Zdejmij” tylko jeśli NIE jest zdjęty i mamy URL
                     let take = null;
                     const canTake = !!(takeUrl && !taken);
                     if (canTake) {
@@ -837,7 +841,6 @@
                         take.textContent = '⬇️';
                     }
 
-                    // Ikona statusu „zdjęto”
                     let statusIcon = null;
                     if (taken) {
                         statusIcon = document.createElement('span');
@@ -881,7 +884,8 @@
                 scheduleSortAndRebuild();
             }
 
-            async onAddCart() {
+            // >>> kluczowa zmiana: param autosave steruje wysyłką formularza <<<
+            async onAddCart({ autosave = true } = {}) {
                 const no = this.cartPickerEl?.value; if (!no) return;
                 if (usedCartNos.has(no)) return;
                 usedCartNos.add(no);
@@ -891,6 +895,8 @@
                     await this.attachCartWeight(no);
                 }
                 await refreshAllPickers();
+
+                if (AUTO_SAVE_ON_ADD && autosave) submitTunnelForm();
             }
 
             async refreshCodesForKind() {
@@ -925,33 +931,40 @@
                 }
                 try {
                     const data = await apiGet(urlLookup(kind, code));
+
                     if (!data.found) {
-                        this.codeEl?.setCustomValidity?.('Taki kod nie występuje dla wybranego rodzaju batona (na magazynku).');
-                        this.setCartControlsEnabled(false);
-                        for (const no of this.selected.keys()) usedCartNos.delete(no);
-                        this.selected.clear(); this.renderPicked(); await refreshAllPickers();
-                    } else {
                         this.codeEl?.setCustomValidity?.('');
-                        if (this.barDateEl && data.latest_packing_date_iso) {
-                            const iso = data.latest_packing_date_iso;
-                            if (this.barDateEl.type === 'date') this.barDateEl.value = iso.slice(0, 10);
-                            else if (this.barDateEl.type === 'datetime-local') this.barDateEl.value = iso.slice(0, 16);
-                            else this.barDateEl.value = iso;
-                        } else if (this.barDateEl) { this.barDateEl.value = ''; }
-                        if (this.mode === 'client') {
-                            this.hCode && (this.hCode.value = code || '');
-                            this.hBarDate && (this.hBarDate.value = this.barDateEl?.value || '');
-                        }
+                        this.codeEl?.removeAttribute?.('aria-invalid');
+                        this.codeEl?.setAttribute?.('title', 'Brak dostępnych wózków dla tego kodu na magazynku. Pozostawiono wcześniej wybrane.');
+                        if (this.barDateEl) this.barDateEl.value = '';
+                        this.setCartControlsEnabled(false);
                         await this.refreshCarts(kind, code);
+                        scheduleSortAndRebuild();
+                        return;
                     }
+
+                    this.codeEl?.setCustomValidity?.('');
+                    if (this.barDateEl && data.latest_packing_date_iso) {
+                        const iso = data.latest_packing_date_iso;
+                        if (this.barDateEl.type === 'date') this.barDateEl.value = iso.slice(0, 10);
+                        else if (this.barDateEl.type === 'datetime-local') this.barDateEl.value = iso.slice(0, 16);
+                        else this.barDateEl.value = iso;
+                    } else if (this.barDateEl) { this.barDateEl.value = ''; }
+                    if (this.mode === 'client') {
+                        this.hCode && (this.hCode.value = code || '');
+                        this.hBarDate && (this.hBarDate.value = this.barDateEl?.value || '');
+                    }
+                    await this.refreshCarts(kind, code);
+
                     this.codeEl?.reportValidity?.();
                     scheduleSortAndRebuild();
                 } catch (e) {
                     console.error('Lookup error:', e);
                     this.codeEl?.setCustomValidity?.('');
+                    this.codeEl?.removeAttribute?.('aria-invalid');
+                    this.codeEl?.setAttribute?.('title', 'Nie udało się sprawdzić dostępności. Pozostawiono wcześniej wybrane.');
                     this.setCartControlsEnabled(false);
-                    for (const no of this.selected.keys()) usedCartNos.delete(no);
-                    this.selected.clear(); this.renderPicked(); await refreshAllPickers();
+                    scheduleSortAndRebuild();
                 }
             }
 
@@ -976,56 +989,52 @@
                 }
             }
 
-            /* >>>>>>> POPRAWKA: tank_no + is_taken z backendu <<<<<<< */
             async attachCartWeight(no) {
-                const kind = this.kindEl?.value, code = this.codeEl?.value; if (!kind || !code || !no) return;
+                const kind = this.kindEl?.value, code = this.codeEl?.value;
+                if (!kind || !code || !no) return;
+
+                const prev = this.selected.get(no) || {
+                    kg: null, tank: null, loadId: null, editUrl: null, takeUrl: null, taken: false
+                };
+
                 try {
                     const data = await apiGet(urlCartInf(kind, code, no));
-                    let kg = null, tank = null, loadId = null, editUrl = null, takeUrl = null, takenNow = false;
+                    const next = { ...prev };
 
                     if (data) {
                         if (data.total_weight_kg != null) {
                             const v = Number(data.total_weight_kg);
-                            kg = Number.isFinite(v) ? Math.round(v * 10) / 10 : null;
+                            if (Number.isFinite(v)) next.kg = Math.round(v * 10) / 10;
                         }
-                        // preferuj bezpośrednio tank_no; jeśli puste, fallback do heurystyki:
+                        let tank = null;
                         if (data.tank_no != null && data.tank_no !== '') {
                             tank = String(data.tank_no);
                         } else {
                             tank = extractTank(data);
                         }
-                        loadId = data.load_id ?? null;
-                        editUrl = data.edit_url ?? null;
-                        takeUrl = data.take_url ?? (loadId ? `/load/${loadId}/take/` : null);
-                        takenNow = !!data.is_taken;
+                        if (tank != null && tank !== '') next.tank = tank;
+
+                        if (data.load_id != null) next.loadId = data.load_id;
+                        if (data.edit_url != null) next.editUrl = data.edit_url;
+
+                        const takenNow = !!data.is_taken;
+                        if (prev.taken || takenNow) {
+                            next.taken = true;
+                            next.takeUrl = null;
+                        } else {
+                            const takeUrl = data.take_url ?? (next.loadId ? `/load/${next.loadId}/take/` : null);
+                            if (takeUrl) next.takeUrl = takeUrl;
+                        }
                     }
 
-                    if (this.selected.has(no)) {
-                        const prev = this.selected.get(no) || {};
-                        this.selected.set(no, {
-                            kg,
-                            tank,
-                            loadId,
-                            editUrl,
-                            // jeśli już był "zamrożony" albo backend mówi, że zdjęty — nie pokazuj przycisku zdejmowania
-                            takeUrl: (prev.taken || takenNow) ? null : takeUrl,
-                            taken: prev.taken ? true : takenNow
-                        });
-                        this.renderPicked();
-                    }
+                    this.selected.set(no, next);
+                    this.renderPicked();
                 } catch (e) {
-                    if (this.selected.has(no)) {
-                        const prev = this.selected.get(no) || {};
-                        this.selected.set(no, {
-                            kg: null, tank: null, loadId: null, editUrl: null,
-                            takeUrl: prev.taken ? null : null, taken: !!prev.taken
-                        });
-                        this.renderPicked();
-                    }
                     console.warn('Nie udało się pobrać masy/tanka dla wózka:', no, e);
+                    this.selected.set(no, prev);
+                    this.renderPicked();
                 }
             }
-            /* >>>>>>> KONIEC POPRAWKI <<<<<<< */
 
             async onTakeCart(no, btnEl) {
                 const info = this.selected.get(no); if (!info) return;
@@ -1035,7 +1044,6 @@
                 try {
                     await apiPost(takeUrl, { cart_no: Number(no) });
 
-                    // NIE usuwamy z selected/usedCartNos – tylko oznaczamy i chowamy przycisk
                     info.taken = true;
                     info.takeUrl = null;
 
@@ -1069,68 +1077,151 @@
         });
 
         // -------------------------
-        // HYDRACJA Z ZAPISANYCH DANYCH (frozen -> taken)
+        // HYDRACJA Z ZAPISANYCH DANYCH (autosave WYŁĄCZONY podczas hydracji)
         // -------------------------
         async function hydrateFromPrefill(prefill) {
             if (!Array.isArray(prefill) || !prefill.length) return;
 
-            for (const row of prefill) {
-                addRowBtn.click();
-                const ctrl = controllers[controllers.length - 1];
+            const prevAutoSave = AUTO_SAVE_ON_ADD;
+            AUTO_SAVE_ON_ADD = false;
 
-                if (ctrl.kindEl) {
-                    ctrl.kindEl.value = row.product_kind || '';
-                    await ctrl.onKindChange();
-                }
+            try {
+                const firstSaved = prefill[0];
+                const srv = firstCtrl;
 
-                if (ctrl.codeEl && row.product_code != null) {
-                    ctrl.codeEl.value = String(row.product_code);
-                    await ctrl.lookupAndFill();
-                }
+                if (srv) {
+                    if (srv.kindEl) {
+                        srv.kindEl.value = firstSaved.product_kind || '';
+                        await srv.onKindChange();
+                    }
+                    if (srv.codeEl && firstSaved.product_code != null) {
+                        srv.codeEl.value = String(firstSaved.product_code);
+                        await srv.lookupAndFill();
+                    }
+                    if (srv.barDateEl && firstSaved.bar_production_date) {
+                        srv.barDateEl.value = firstSaved.bar_production_date;
+                    }
 
-                if (ctrl.barDateEl && row.bar_production_date) {
-                    ctrl.barDateEl.value = row.bar_production_date;
-                    if (ctrl.hBarDate) ctrl.hBarDate.value = row.bar_production_date;
-                }
+                    const cartObjsFirst = Array.isArray(firstSaved.carts) ? firstSaved.carts : [];
+                    const cartsFirst = Array.isArray(firstSaved.taken_carts) && firstSaved.taken_carts.length
+                        ? firstSaved.taken_carts.map(String)
+                        : cartObjsFirst.map(x => String(x.no ?? x));
 
-                const carts = Array.isArray(row.taken_carts) && row.taken_carts.length
-                    ? row.taken_carts.map(String)
-                    : (Array.isArray(row.carts) ? row.carts.map(x => String(x.no ?? x)) : []);
-
-                for (const no of carts) {
-                    const hasOption = ctrl.cartPickerEl?.querySelector(`option[value="${no}"]`);
-                    if (hasOption) {
-                        ctrl.cartPickerEl.value = no;
-                        await ctrl.onAddCart();
-                        // „zamroź” chip, jeśli wiersz jest historyczny
-                        const info = ctrl.selected.get(no);
-                        if (info) {
-                            info.taken = !!row.frozen;
-                            if (row.frozen) info.takeUrl = null;
-                            ctrl.selected.set(no, info);
-                            ctrl.renderPicked();
+                    for (const no of cartsFirst) {
+                        const hasOption = srv.cartPickerEl?.querySelector(`option[value="${no}"]`);
+                        if (hasOption) {
+                            srv.cartPickerEl.value = no;
+                            await srv.onAddCart({ autosave: false });
+                        } else {
+                            usedCartNos.add(no);
+                            if (!srv.selected.has(no)) {
+                                srv.selected.set(no, { kg: null, tank: null, loadId: null, editUrl: null, takeUrl: null, taken: false });
+                            }
                         }
-                    } else {
-                        usedCartNos.add(no);
-                        ctrl.selected.set(no, {
-                            kg: null, tank: null, loadId: null, editUrl: null,
-                            takeUrl: null,                   // brak zdejmowania przy hydracji
-                            taken: !!row.frozen              // KLUCZOWE
-                        });
+
+                        const obj = cartObjsFirst.find(x => String(x.no ?? x) === no) || null;
+                        const info = srv.selected.get(no) || {};
+                        if (obj && typeof obj === 'object') {
+                            const val = Number(obj.total_weight_kg ?? obj.kg);
+                            if (info.kg == null && Number.isFinite(val)) info.kg = Math.round(val * 10) / 10;
+
+                            const tankHydr = obj.tank_no ?? obj.tank ?? null;
+                            if (info.tank == null && tankHydr != null && tankHydr !== '') info.tank = String(tankHydr);
+
+                            if (obj.load_id != null) info.loadId = obj.load_id;
+                            if (obj.edit_url != null) info.editUrl = obj.edit_url;
+
+                            const frozenTaken = !!firstSaved.frozen || !!obj.is_taken;
+                            info.taken = frozenTaken ? true : !!info.taken;
+                            if (info.taken) info.takeUrl = null;
+                        } else {
+                            if (firstSaved.frozen) { info.taken = true; info.takeUrl = null; }
+                        }
+                        srv.selected.set(no, info);
+                    }
+                    srv.renderPicked();
+
+                    for (const no of cartsFirst) {
+                        const info = srv.selected.get(no);
+                        if (!info || info.kg == null || info.tank == null) {
+                            await srv.attachCartWeight(no);
+                        }
                     }
                 }
-                ctrl.renderPicked();
-                for (const no of carts) {
-                    await ctrl.attachCartWeight(no);
-                }
-            }
 
-            scheduleSortAndRebuild();
+                for (let i = 1; i < prefill.length; i++) {
+                    const row = prefill[i];
+                    addRowBtn.click();
+                    const ctrl = controllers[controllers.length - 1];
+
+                    if (ctrl.kindEl) {
+                        ctrl.kindEl.value = row.product_kind || '';
+                        await ctrl.onKindChange();
+                    }
+                    if (ctrl.codeEl && row.product_code != null) {
+                        ctrl.codeEl.value = String(row.product_code);
+                        await ctrl.lookupAndFill();
+                    }
+                    if (ctrl.barDateEl && row.bar_production_date) {
+                        ctrl.barDateEl.value = row.bar_production_date;
+                        if (ctrl.hBarDate) ctrl.hBarDate.value = row.bar_production_date;
+                    }
+
+                    const cartObjs = Array.isArray(row.carts) ? row.carts : [];
+                    const carts = Array.isArray(row.taken_carts) && row.taken_carts.length
+                        ? row.taken_carts.map(String)
+                        : cartObjs.map(x => String(x.no ?? x));
+
+                    for (const no of carts) {
+                        const hasOption = ctrl.cartPickerEl?.querySelector(`option[value="${no}"]`);
+                        if (hasOption) {
+                            ctrl.cartPickerEl.value = no;
+                            await ctrl.onAddCart({ autosave: false });
+                        } else {
+                            usedCartNos.add(no);
+                            if (!ctrl.selected.has(no)) {
+                                ctrl.selected.set(no, { kg: null, tank: null, loadId: null, editUrl: null, takeUrl: null, taken: false });
+                            }
+                        }
+
+                        const obj = cartObjs.find(x => String(x.no ?? x) === no) || null;
+                        const info = ctrl.selected.get(no) || {};
+                        if (obj && typeof obj === 'object') {
+                            const val = Number(obj.total_weight_kg ?? obj.kg);
+                            if (info.kg == null && Number.isFinite(val)) info.kg = Math.round(val * 10) / 10;
+
+                            const tankHydr = obj.tank_no ?? obj.tank ?? null;
+                            if (info.tank == null && tankHydr != null && tankHydr !== '') info.tank = String(tankHydr);
+
+                            if (obj.load_id != null) info.loadId = obj.load_id;
+                            if (obj.edit_url != null) info.editUrl = obj.edit_url;
+
+                            const frozenTaken = !!row.frozen || !!obj.is_taken;
+                            info.taken = frozenTaken ? true : !!info.taken;
+                            if (info.taken) info.takeUrl = null;
+                        } else {
+                            if (row.frozen) { info.taken = true; info.takeUrl = null; }
+                        }
+                        ctrl.selected.set(no, info);
+                    }
+                    ctrl.renderPicked();
+
+                    for (const no of carts) {
+                        const info = ctrl.selected.get(no);
+                        if (!info || info.kg == null || info.tank == null) {
+                            await ctrl.attachCartWeight(no);
+                        }
+                    }
+                }
+
+                scheduleSortAndRebuild();
+            } finally {
+                AUTO_SAVE_ON_ADD = prevAutoSave;
+            }
         }
 
         // start
         hydrateFromPrefill(window.__TUNNEL_ROWS);
-
         scheduleSortAndRebuild();
     })();
 </script>
