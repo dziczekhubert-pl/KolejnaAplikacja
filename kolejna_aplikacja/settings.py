@@ -6,9 +6,8 @@ Dostosowane pod Render.com (Gunicorn + WhiteNoise + DATABASE_URL).
 
 from pathlib import Path
 import os
-from urllib.parse import urlparse
 
-import dj_database_url  # <-- DODANE
+import dj_database_url
 
 # --------------------------------------------------------------------------------------
 # ŚCIEŻKI
@@ -20,30 +19,22 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # --------------------------------------------------------------------------------------
 SECRET_KEY = os.getenv(
     "DJANGO_SECRET_KEY",
-    # dev only
     "django-insecure-evt(poz%^0@3!hgkq(qxc3+vbjti+zo3$c@b(p$yb!l=zekzej",
 )
+
 DEBUG = os.getenv("DJANGO_DEBUG", "1") == "1"
 
-# ALLOWED_HOSTS: w DEV "*" (jak było), w prod czytamy listę z ENV
 if DEBUG:
     ALLOWED_HOSTS = ["*"]
 else:
-    # Przykład ENV: DJANGO_ALLOWED_HOSTS="moja-app.onrender.com,www.example.com"
     _hosts_env = os.getenv("DJANGO_ALLOWED_HOSTS", "")
     ALLOWED_HOSTS = [h.strip() for h in _hosts_env.split(",") if h.strip()]
 
-# CSRF_TRUSTED_ORIGINS: lista URL bazowych (https://...)
-# Przykład ENV: DJANGO_CSRF_TRUSTED_ORIGINS="https://moja-app.onrender.com,https://www.example.com"
 _csrf_env = os.getenv("DJANGO_CSRF_TRUSTED_ORIGINS", "")
 CSRF_TRUSTED_ORIGINS = [o.strip() for o in _csrf_env.split(",") if o.strip()]
 
-# (Opcjonalnie) jeżeli chcesz automatycznie zaufać subdomenom Render:
-# Dodaj je tylko gdy nie jesteś w DEBUG i nie masz jeszcze nic ustawionego.
 if not DEBUG and not CSRF_TRUSTED_ORIGINS:
-    # Uwaga: Render używa domen w stylu https://twoja-usluga.onrender.com
-    # Jeśli znasz swój host, najlepiej ustaw go jawnie w ENV zamiast wildcardów.
-    pass  # zostaw puste lub ustaw jawnie w ENV
+    pass
 
 # --------------------------------------------------------------------------------------
 # APLIKACJE
@@ -55,8 +46,6 @@ INSTALLED_APPS = [
     "django.contrib.sessions",
     "django.contrib.messages",
     "django.contrib.staticfiles",
-
-    # Twoja aplikacja
     "core.apps.CoreConfig",
 ]
 
@@ -65,8 +54,7 @@ INSTALLED_APPS = [
 # --------------------------------------------------------------------------------------
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
-    # WhiteNoise powinien być tuż po SecurityMiddleware:
-    "whitenoise.middleware.WhiteNoiseMiddleware",  # <-- DODANE
+    "whitenoise.middleware.WhiteNoiseMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
@@ -100,33 +88,33 @@ TEMPLATES = [
 ]
 
 # --------------------------------------------------------------------------------------
-# BAZA DANYCH (Render → DATABASE_URL)
+# BAZA DANYCH
 # --------------------------------------------------------------------------------------
-# Jeśli ustawisz DATABASE_URL (np. postgresql://...), użyjemy go.
-# W DEV fallback do sqlite3.
-DATABASE_URL = os.getenv("DATABASE_URL")
+DATABASES = {
+    "default": dj_database_url.config(
+        default=f"sqlite:///{BASE_DIR / 'db.sqlite3'}",
+        conn_max_age=600,
+        ssl_require=False,
+    )
+}
 
-if DATABASE_URL:
-    DATABASES = {
-        "default": {
-            "ENGINE": "django.db.backends.postgresql",
-            "NAME": "plasterkownia",
-            "USER": "plaster_app",
-            "PASSWORD": "master753S",
-            "HOST": "localhost",
-            "PORT": "5432",
-            "CONN_MAX_AGE": 600,
-        }
-    }
-
-else:
-    # DEV fallback – pojedynczy plik
-    DATABASES = {
-        "default": {
-            "ENGINE": "django.db.backends.sqlite3",
-            "NAME": BASE_DIR / "db.sqlite3",
-        }
-    }
+# --------------------------------------------------------------------------------------
+# WALIDACJA HASEŁ
+# --------------------------------------------------------------------------------------
+AUTH_PASSWORD_VALIDATORS = [
+    {
+        "NAME": "django.contrib.auth.password_validation.UserAttributeSimilarityValidator",
+    },
+    {
+        "NAME": "django.contrib.auth.password_validation.MinimumLengthValidator",
+    },
+    {
+        "NAME": "django.contrib.auth.password_validation.CommonPasswordValidator",
+    },
+    {
+        "NAME": "django.contrib.auth.password_validation.NumericPasswordValidator",
+    },
+]
 
 # --------------------------------------------------------------------------------------
 # MIĘDZYNARODOWOŚĆ / CZAS
@@ -140,12 +128,9 @@ USE_TZ = True
 # STATIC / MEDIA
 # --------------------------------------------------------------------------------------
 STATIC_URL = "static/"
-STATICFILES_DIRS = [BASE_DIR /
-                    "static"] if (BASE_DIR / "static").exists() else []
+STATICFILES_DIRS = [BASE_DIR / "static"] if (BASE_DIR / "static").exists() else []
 STATIC_ROOT = BASE_DIR / "staticfiles"
-
-# WhiteNoise – kompresja i hash nazw plików statycznych:
-STATICFILES_STORAGE = "whitenoise.storage.CompressedManifestStaticFilesStorage"  # <-- DODANE
+STATICFILES_STORAGE = "whitenoise.storage.CompressedManifestStaticFilesStorage"
 
 MEDIA_URL = "media/"
 MEDIA_ROOT = BASE_DIR / "media"
@@ -162,18 +147,31 @@ LOGGING = {
     "version": 1,
     "disable_existing_loggers": False,
     "formatters": {
-        "verbose": {"format": "[{levelname}] {asctime} {name} | {message}", "style": "{"},
-        "simple": {"format": "{levelname}: {message}", "style": "{"},
+        "verbose": {
+            "format": "[{levelname}] {asctime} {name} | {message}",
+            "style": "{",
+        },
+        "simple": {
+            "format": "{levelname}: {message}",
+            "style": "{",
+        },
     },
     "handlers": {
-        "console": {"class": "logging.StreamHandler", "formatter": "verbose"},
+        "console": {
+            "class": "logging.StreamHandler",
+            "formatter": "verbose",
+        },
     },
     "loggers": {
         "django.db.backends": {
             "handlers": ["console"],
             "level": "INFO" if DEBUG else "WARNING",
         },
-        "core": {"handlers": ["console"], "level": "INFO", "propagate": False},
+        "core": {
+            "handlers": ["console"],
+            "level": "INFO",
+            "propagate": False,
+        },
     },
 }
 
@@ -189,19 +187,17 @@ if not DEBUG:
     SECURE_CONTENT_TYPE_NOSNIFF = True
     SECURE_REFERRER_POLICY = "strict-origin-when-cross-origin"
 
-    SECURE_HSTS_SECONDS = int(
-        os.getenv("DJANGO_SECURE_HSTS_SECONDS", "31536000"))
-    SECURE_HSTS_INCLUDE_SUBDOMAINS = os.getenv(
-        "DJANGO_SECURE_HSTS_INCLUDE_SUBDOMAINS", "1") == "1"
+    SECURE_HSTS_SECONDS = int(os.getenv("DJANGO_SECURE_HSTS_SECONDS", "31536000"))
+    SECURE_HSTS_INCLUDE_SUBDOMAINS = (
+        os.getenv("DJANGO_SECURE_HSTS_INCLUDE_SUBDOMAINS", "1") == "1"
+    )
     SECURE_HSTS_PRELOAD = os.getenv("DJANGO_SECURE_HSTS_PRELOAD", "1") == "1"
     X_FRAME_OPTIONS = "DENY"
 
 # --------------------------------------------------------------------------------------
-# ŚCIEŻKI NA SNAPSHOTY JSON (jeśli korzystasz z eksportu do JSON)
+# ŚCIEŻKI NA SNAPSHOTY JSON
 # --------------------------------------------------------------------------------------
 JSON_DATA_DIR = BASE_DIR / "data_json"
-# Render ma ephemeral filesystem – katalog będzie kasowany po restarcie dyno.
-# Jeśli tego potrzebujesz trwałe, rozważ S3/Wasabi/Backblaze.
 JSON_DATA_DIR.mkdir(parents=True, exist_ok=True)
 
 JSON_FILES = {
@@ -211,7 +207,7 @@ JSON_FILES = {
 }
 
 # --------------------------------------------------------------------------------------
-# (Opcjonalnie) CELERY – jeśli planujesz eksport snapshotów w tle
+# CELERY (opcjonalnie)
 # --------------------------------------------------------------------------------------
 # CELERY_BROKER_URL = os.getenv("CELERY_BROKER_URL", "redis://127.0.0.1:6379/0")
 # CELERY_RESULT_BACKEND = os.getenv("CELERY_RESULT_BACKEND", "redis://127.0.0.1:6379/0")
